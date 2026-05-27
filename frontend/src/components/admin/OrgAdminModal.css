@@ -1,0 +1,85 @@
+.org-admin-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.org-admin-section__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-500);
+  margin-bottom: var(--space-3);
+}
+
+.org-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.org-admin-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+
+.org-admin-item__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+.org-admin-item__info {
+  flex: 1;
+  min-width: 0;
+}
+.org-admin-item__name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  display: block;
+}
+.org-admin-item__email {
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+}
+
+.org-admin-search {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+.org-admin-search__icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+}
+.org-admin-search__input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  background: var(--muted);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: all var(--transition-normal);
+}
+.org-admin-search__input:focus {
+  background: var(--bg);
+  border-color: var(--primary);
+}

@@ -1,0 +1,25 @@
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  padding: var(--space-6) var(--space-8);
+  background: var(--muted);
+  min-height: 100vh;
+}
+
+.admin-loading {
+  height: 100vh;
+  font-size: var(--font-size-lg);
+  color: var(--gray-400);
+}
+
+@media (max-width: 768px) {
+  .admin-main {
+    margin-left: 0;
+    padding: var(--space-4);
+  }
+}

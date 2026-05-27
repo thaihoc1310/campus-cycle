@@ -1,0 +1,32 @@
+/* Shared management page styles */
+.management-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.management-section {
+  margin-top: var(--space-8);
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.management-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.management-section__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+}
