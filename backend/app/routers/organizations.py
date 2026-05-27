@@ -16,6 +16,7 @@ from app.schemas.organization import (
 )
 from app.schemas.user import UserResponse
 from app.schemas.common import PaginatedResponse
+from app.routers.sorting import apply_sort
 from app.services.auth import require_admin
 
 router = APIRouter(prefix="/api/organizations", tags=["organizations"])
@@ -26,6 +27,8 @@ def list_organizations(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     search: str = Query("", description="Search by name"),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
@@ -33,7 +36,14 @@ def list_organizations(
     if search:
         query = query.filter(Organization.name.ilike(f"%{search}%"))
     total = query.count()
-    orgs = query.order_by(Organization.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    query = apply_sort(query, sort_by, sort_order, {
+        "name": Organization.name,
+        "type": Organization.type,
+        "description": Organization.description,
+        "created_at": Organization.created_at,
+        "updated_at": Organization.updated_at,
+    })
+    orgs = query.offset((page - 1) * page_size).limit(page_size).all()
 
     return PaginatedResponse(
         items=[OrganizationResponse.model_validate(o) for o in orgs],

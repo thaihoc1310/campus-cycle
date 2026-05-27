@@ -11,6 +11,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import OrgAdminModal from '../../components/admin/OrgAdminModal.jsx';
+import useSort from '../../hooks/useSort.js';
 import './Management.css';
 
 const columns = [
@@ -25,6 +26,7 @@ export default function OrganizationsPage() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, pages: 1 });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const { sortBy, sortOrder, handleSort } = useSort();
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', type: '' });
@@ -35,10 +37,10 @@ export default function OrganizationsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await api.get('/organizations', { params: { page, page_size: 10, search } });
+      const res = await api.get('/organizations', { params: { page, page_size: 10, search, sort_by: sortBy, sort_order: sortOrder } });
       setData(res.data);
     } catch { /* ignore */ }
-  }, [page, search]);
+  }, [page, search, sortBy, sortOrder]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -93,7 +95,7 @@ export default function OrganizationsPage() {
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search organizations..." />
       </div>
 
-      <Table columns={columns} data={data.items} renderRow={(item) => (
+      <Table columns={columns} data={data.items} sortBy={sortBy} sortOrder={sortOrder} onSort={(key) => { handleSort(key); setPage(1); }} renderRow={(item) => (
         <tr key={item.id}>
           <td><strong>{item.name}</strong></td>
           <td>{item.type || '—'}</td>

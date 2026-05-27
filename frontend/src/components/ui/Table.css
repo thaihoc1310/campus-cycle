@@ -30,6 +30,31 @@
   border-radius: 0 var(--radius-lg) 0 0;
 }
 
+.table__sort {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.table__sort svg {
+  flex: 0 0 auto;
+  opacity: 0.6;
+}
+
+.table__sort:hover svg,
+.table__sort--active svg {
+  opacity: 1;
+}
+
 .table td {
   padding: var(--space-3) var(--space-4);
   font-size: var(--font-size-sm);

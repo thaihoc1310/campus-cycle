@@ -22,7 +22,7 @@ def get_stats(db: Session = Depends(get_db), _admin: User = Depends(require_admi
     total_campaigns = db.query(func.count(Campaign.id)).scalar() or 0
     total_transactions = db.query(func.count(Transaction.id)).scalar() or 0
     total_orgs = db.query(func.count(Organization.id)).scalar() or 0
-    total_revenue = db.query(func.coalesce(func.sum(Transaction.platform_fee), 0)).scalar()
+    total_campus_fund = db.query(func.coalesce(func.sum(Transaction.platform_fee), 0)).scalar()
 
     return {
         "total_users": total_users,
@@ -30,7 +30,7 @@ def get_stats(db: Session = Depends(get_db), _admin: User = Depends(require_admi
         "total_campaigns": total_campaigns,
         "total_transactions": total_transactions,
         "total_organizations": total_orgs,
-        "total_revenue": float(total_revenue),
+        "total_campus_fund": float(total_campus_fund),
     }
 
 
@@ -51,7 +51,7 @@ def get_charts(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             Transaction.created_at < month_end,
         ).scalar() or 0
 
-        revenue = db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        campus_fund = db.query(func.coalesce(func.sum(Transaction.platform_fee), 0)).filter(
             Transaction.created_at >= month_start,
             Transaction.created_at < month_end,
         ).scalar()
@@ -59,7 +59,7 @@ def get_charts(db: Session = Depends(get_db), _admin: User = Depends(require_adm
         monthly_data.append({
             "month": month_start.strftime("%b %Y"),
             "transactions": count,
-            "revenue": float(revenue),
+            "campus_fund": float(campus_fund),
         })
 
     # Item status distribution

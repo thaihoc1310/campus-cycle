@@ -18,18 +18,20 @@ class Transaction(Base):
     item_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("items.id", ondelete="SET NULL"), nullable=True
     )
-    buyer_id: Mapped[uuid.UUID] = mapped_column(
+    transaction_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="sale"
+    )  # sale, campaign_donation
+    from_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    seller_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    to_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     campaign_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     platform_fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
-    fund_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
     )  # pending, completed, cancelled, refunded
@@ -42,8 +44,8 @@ class Transaction(Base):
 
     # Relationships
     item: Mapped["Item | None"] = relationship("Item", lazy="joined")
-    buyer: Mapped["User"] = relationship("User", foreign_keys=[buyer_id], lazy="joined")
-    seller: Mapped["User"] = relationship("User", foreign_keys=[seller_id], lazy="joined")
+    from_user: Mapped["User"] = relationship("User", foreign_keys=[from_user_id], lazy="joined")
+    to_user: Mapped["User | None"] = relationship("User", foreign_keys=[to_user_id], lazy="joined")
     campaign: Mapped["Campaign | None"] = relationship("Campaign", lazy="joined")
 
     def __repr__(self):

@@ -11,13 +11,14 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import ImageGalleryModal from '../../components/admin/ImageGalleryModal.jsx';
+import useSort from '../../hooks/useSort.js';
 import './Management.css';
 
 const columns = [
   { key: 'title', label: 'Title' },
   { key: 'type', label: 'Type' },
   { key: 'status', label: 'Status' },
-  { key: 'organization', label: 'Organization' },
+  { key: 'organization', label: 'Organization', sortKey: 'organization' },
   { key: 'start_date', label: 'Start' },
   { key: 'end_date', label: 'End' },
   { key: 'actions', label: 'Actions', width: '130px' },
@@ -28,11 +29,12 @@ export default function CampaignsPage() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, pages: 1 });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const { sortBy, sortOrder, handleSort } = useSort();
   const [orgs, setOrgs] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', type: 'fundraising', status: 'draft', start_date: '', end_date: '', organization_id: '' });
+  const [form, setForm] = useState({ title: '', description: '', type: 'fundraising', status: 'pending', start_date: '', end_date: '', organization_id: '' });
   const [saving, setSaving] = useState(false);
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -40,10 +42,10 @@ export default function CampaignsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await api.get('/campaigns', { params: { page, page_size: 10, search } });
+      const res = await api.get('/campaigns', { params: { page, page_size: 10, search, sort_by: sortBy, sort_order: sortOrder } });
       setData(res.data);
     } catch { /* ignore */ }
-  }, [page, search]);
+  }, [page, search, sortBy, sortOrder]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function CampaignsPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ title: '', description: '', type: 'fundraising', status: 'draft', start_date: '', end_date: '', organization_id: '' });
+    setForm({ title: '', description: '', type: 'fundraising', status: 'pending', start_date: '', end_date: '', organization_id: '' });
     setModalOpen(true);
   };
 
@@ -114,7 +116,7 @@ export default function CampaignsPage() {
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search campaigns..." />
       </div>
 
-      <Table columns={columns} data={data.items} renderRow={(item) => (
+      <Table columns={columns} data={data.items} sortBy={sortBy} sortOrder={sortOrder} onSort={(key) => { handleSort(key); setPage(1); }} renderRow={(item) => (
         <tr key={item.id}>
           <td><strong>{item.title}</strong></td>
           <td><span className="badge badge--active">{item.type}</span></td>
@@ -143,10 +145,10 @@ export default function CampaignsPage() {
               <option value="donation">Donation</option>
             </Input>
             <Input id="camp-status" label="Status" type="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
               <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="rejected">Rejected</option>
             </Input>
           </div>
           <Input id="camp-org" label="Organization" type="select" value={form.organization_id} onChange={(e) => setForm({ ...form, organization_id: e.target.value })}>

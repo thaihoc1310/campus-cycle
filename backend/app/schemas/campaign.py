@@ -1,14 +1,18 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel
+
+CampaignStatus = Literal["pending", "approved", "rejected", "completed"]
+CampaignType = Literal["fundraising", "donation"]
 
 
 class CampaignCreate(BaseModel):
     title: str
     description: str | None = None
-    type: str = "fundraising"
-    status: str = "draft"
+    type: CampaignType = "fundraising"
+    status: CampaignStatus = "pending"
     start_date: datetime | None = None
     end_date: datetime | None = None
     organization_id: UUID | None = None
@@ -17,8 +21,8 @@ class CampaignCreate(BaseModel):
 class CampaignUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    type: str | None = None
-    status: str | None = None
+    type: CampaignType | None = None
+    status: CampaignStatus | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     organization_id: UUID | None = None

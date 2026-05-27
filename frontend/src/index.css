@@ -136,11 +136,11 @@ input, select, textarea, button {
   background: #D1FAE5;
   color: #065F46;
 }
-.badge--pending, .badge--draft {
+.badge--pending {
   background: #FEF3C7;
   color: #92400E;
 }
-.badge--inactive, .badge--rejected, .badge--cancelled, .badge--banned {
+.badge--inactive, .badge--rejected, .badge--cancelled {
   background: #FEE2E2;
   color: #991B1B;
 }

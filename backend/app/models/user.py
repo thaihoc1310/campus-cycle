@@ -19,7 +19,7 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")  # admin, member
     user_type: Mapped[str] = mapped_column(String(50), nullable=True)  # student, teacher, staff
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, inactive, banned
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, inactive
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserResponse, UserUpdate
+from app.schemas.user import AdminUserCreate, UserResponse, UserUpdate
 from app.schemas.common import PaginatedResponse
+from app.routers.sorting import apply_sort
 from app.services.auth import require_admin, hash_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -18,6 +19,8 @@ def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     search: str = Query("", description="Search by name or email"),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
@@ -30,7 +33,16 @@ def list_users(
             )
         )
     total = query.count()
-    users = query.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    query = apply_sort(query, sort_by, sort_order, {
+        "name": User.name,
+        "email": User.email,
+        "role": User.role,
+        "user_type": User.user_type,
+        "status": User.status,
+        "created_at": User.created_at,
+        "updated_at": User.updated_at,
+    })
+    users = query.offset((page - 1) * page_size).limit(page_size).all()
 
     return PaginatedResponse(
         items=[UserResponse.model_validate(u) for u in users],
@@ -39,6 +51,33 @@ def list_users(
         page_size=page_size,
         pages=math.ceil(total / page_size) if total > 0 else 1,
     )
+
+
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(
+    data: AdminUserCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    user = User(
+        name=data.name,
+        email=data.email,
+        password=hash_password(data.password),
+        role=data.role,
+        user_type=data.user_type,
+        status=data.status,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return UserResponse.model_validate(user)
 
 
 @router.get("/{user_id}", response_model=UserResponse)

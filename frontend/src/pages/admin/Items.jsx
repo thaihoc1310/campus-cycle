@@ -11,6 +11,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import ImageGalleryModal from '../../components/admin/ImageGalleryModal.jsx';
+import useSort from '../../hooks/useSort.js';
 import './Management.css';
 
 const itemColumns = [
@@ -37,12 +38,13 @@ export default function ItemsPage() {
   const [data, setData] = useState({ items: [], total: 0, page: 1, pages: 1 });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const itemSort = useSort();
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', price: '0', type: 'sell', status: 'draft', category_id: '', user_id: '' });
+  const [form, setForm] = useState({ title: '', description: '', price: '0', type: 'sell', status: 'pending', category_id: '', user_id: '' });
   const [saving, setSaving] = useState(false);
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -52,6 +54,7 @@ export default function ItemsPage() {
   const [catData, setCatData] = useState({ items: [], total: 0, page: 1, pages: 1 });
   const [catSearch, setCatSearch] = useState('');
   const [catPage, setCatPage] = useState(1);
+  const catSort = useSort();
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', description: '', is_active: true });
@@ -62,20 +65,20 @@ export default function ItemsPage() {
   // --- Fetch Items ---
   const fetchItems = useCallback(async () => {
     try {
-      const res = await api.get('/items', { params: { page, page_size: 10, search } });
+      const res = await api.get('/items', { params: { page, page_size: 10, search, sort_by: itemSort.sortBy, sort_order: itemSort.sortOrder } });
       setData(res.data);
     } catch { /* ignore */ }
-  }, [page, search]);
+  }, [page, search, itemSort.sortBy, itemSort.sortOrder]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
   // --- Fetch Categories ---
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await api.get('/categories', { params: { page: catPage, page_size: 10, search: catSearch } });
+      const res = await api.get('/categories', { params: { page: catPage, page_size: 10, search: catSearch, sort_by: catSort.sortBy, sort_order: catSort.sortOrder } });
       setCatData(res.data);
     } catch { /* ignore */ }
-  }, [catPage, catSearch]);
+  }, [catPage, catSearch, catSort.sortBy, catSort.sortOrder]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
@@ -88,7 +91,7 @@ export default function ItemsPage() {
   // --- Item CRUD ---
   const openCreateItem = () => {
     setEditItem(null);
-    setForm({ title: '', description: '', price: '0', type: 'sell', status: 'draft', category_id: '', user_id: '' });
+    setForm({ title: '', description: '', price: '0', type: 'sell', status: 'pending', category_id: '', user_id: '' });
     setModalOpen(true);
   };
 
@@ -190,7 +193,7 @@ export default function ItemsPage() {
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search items..." />
       </div>
 
-      <Table columns={itemColumns} data={data.items} renderRow={(item) => (
+      <Table columns={itemColumns} data={data.items} sortBy={itemSort.sortBy} sortOrder={itemSort.sortOrder} onSort={(key) => { itemSort.handleSort(key); setPage(1); }} renderRow={(item) => (
         <tr key={item.id}>
           <td><strong>{item.title}</strong></td>
           <td>${Number(item.price).toLocaleString()}</td>
@@ -218,7 +221,7 @@ export default function ItemsPage() {
         <div className="management-toolbar">
           <SearchBar value={catSearch} onChange={(v) => { setCatSearch(v); setCatPage(1); }} placeholder="Search categories..." />
         </div>
-        <Table columns={catColumns} data={catData.items} renderRow={(cat) => (
+        <Table columns={catColumns} data={catData.items} sortBy={catSort.sortBy} sortOrder={catSort.sortOrder} onSort={(key) => { catSort.handleSort(key); setCatPage(1); }} renderRow={(cat) => (
           <tr key={cat.id}>
             <td><strong>{cat.name}</strong></td>
             <td style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.description || '—'}</td>
@@ -247,11 +250,11 @@ export default function ItemsPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
             <Input id="item-status" label="Status" type="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="draft">Draft</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
-              <option value="sold">Sold</option>
               <option value="rejected">Rejected</option>
+              <option value="sold">Sold</option>
+              <option value="donated">Donated</option>
             </Input>
             <Input id="item-cat" label="Category" type="select" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
               <option value="">— None —</option>

@@ -8,6 +8,7 @@ from app.models.category import Category
 from app.models.user import User
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
 from app.schemas.common import PaginatedResponse
+from app.routers.sorting import apply_sort
 from app.services.auth import require_admin
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
@@ -18,6 +19,8 @@ def list_categories(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     search: str = Query("", description="Search by name"),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
@@ -25,7 +28,14 @@ def list_categories(
     if search:
         query = query.filter(Category.name.ilike(f"%{search}%"))
     total = query.count()
-    categories = query.order_by(Category.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    query = apply_sort(query, sort_by, sort_order, {
+        "name": Category.name,
+        "description": Category.description,
+        "is_active": Category.is_active,
+        "created_at": Category.created_at,
+        "updated_at": Category.updated_at,
+    })
+    categories = query.offset((page - 1) * page_size).limit(page_size).all()
     return PaginatedResponse(
         items=[CategoryResponse.model_validate(c) for c in categories],
         total=total, page=page, page_size=page_size,

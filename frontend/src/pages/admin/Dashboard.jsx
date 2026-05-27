@@ -12,7 +12,7 @@ const statIcons = {
   total_campaigns: Megaphone,
   total_transactions: ArrowLeftRight,
   total_organizations: Building2,
-  total_revenue: DollarSign,
+  total_campus_fund: DollarSign,
 };
 
 const statLabels = {
@@ -21,7 +21,7 @@ const statLabels = {
   total_campaigns: 'Campaigns',
   total_transactions: 'Transactions',
   total_organizations: 'Organizations',
-  total_revenue: 'Revenue',
+  total_campus_fund: 'Campus Fund',
 };
 
 const statColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -46,7 +46,7 @@ export default function Dashboard() {
       <div className="stats-grid">
         {statKeys.map((key, i) => {
           const Icon = statIcons[key] || Package;
-          const value = key === 'total_revenue' ? `$${Number(stats[key]).toLocaleString()}` : stats[key];
+          const value = key === 'total_campus_fund' ? `$${Number(stats[key]).toLocaleString()}` : stats[key];
           return (
             <div key={key} className="stat-card" style={{ '--stat-color': statColors[i % statColors.length] }}>
               <div className="stat-card__icon" style={{ background: statColors[i % statColors.length] }}>
@@ -78,16 +78,16 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Revenue Trend */}
+          {/* Campus Fund Trend */}
           <div className="chart-card">
-            <h3 className="chart-card__title">Revenue Trend</h3>
+            <h3 className="chart-card__title">Campus Fund Trend</h3>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={charts.monthly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} />
                 <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: 'none', background: '#1F2937', color: '#fff' }} />
-                <Line type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} dot={{ r: 5, fill: '#10B981' }} />
+                <Line type="monotone" dataKey="campus_fund" stroke="#10B981" strokeWidth={3} dot={{ r: 5, fill: '#10B981' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

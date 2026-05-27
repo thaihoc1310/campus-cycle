@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
-from decimal import Decimal
 
-from sqlalchemy import String, DateTime, ForeignKey, Numeric, Boolean, func
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,8 +18,8 @@ class Campaign(Base):
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="fundraising")  # fundraising, donation
     status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="draft"
-    )  # draft, active, completed, cancelled
+        String(50), nullable=False, default="pending"
+    )  # pending, approved, rejected, completed
     start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     organization_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -82,8 +81,6 @@ class CampaignItem(Base):
     campaign_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
     )
-    contribution_type: Mapped[str] = mapped_column(String(50), nullable=False)  # donate, partial_sale
-    contribution_value: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
     )  # pending, approved, rejected

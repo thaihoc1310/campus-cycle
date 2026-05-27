@@ -20,8 +20,8 @@ class Item(Base):
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="sell")  # sell, donate
     status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="draft"
-    )  # draft, pending, approved, sold, rejected
+        String(50), nullable=False, default="pending"
+    )  # pending, approved, rejected, sold, donated
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )

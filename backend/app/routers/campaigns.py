@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.campaign import Campaign, CampaignImage
+from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignResponse, CampaignImageResponse
 from app.schemas.common import PaginatedResponse
+from app.routers.sorting import apply_sort
 from app.services.auth import require_admin
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
@@ -32,13 +34,27 @@ def _campaign_to_response(c: Campaign) -> CampaignResponse:
 def list_campaigns(
     page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100),
     search: str = Query(""),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db), _admin: User = Depends(require_admin),
 ):
     query = db.query(Campaign)
     if search:
         query = query.filter(or_(Campaign.title.ilike(f"%{search}%"), Campaign.description.ilike(f"%{search}%")))
     total = query.count()
-    campaigns = query.order_by(Campaign.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    if sort_by == "organization":
+        query = query.outerjoin(Campaign.organization)
+    query = apply_sort(query, sort_by, sort_order, {
+        "title": Campaign.title,
+        "type": Campaign.type,
+        "status": Campaign.status,
+        "organization": Organization.name,
+        "start_date": Campaign.start_date,
+        "end_date": Campaign.end_date,
+        "created_at": Campaign.created_at,
+        "updated_at": Campaign.updated_at,
+    })
+    campaigns = query.offset((page - 1) * page_size).limit(page_size).all()
     return PaginatedResponse(
         items=[_campaign_to_response(c) for c in campaigns],
         total=total, page=page, page_size=page_size,

@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
+from app.models.category import Category
 from app.models.item import Item, ItemImage
 from app.models.user import User
 from app.schemas.item import ItemCreate, ItemUpdate, ItemResponse, ItemImageResponse
 from app.schemas.common import PaginatedResponse
+from app.routers.sorting import apply_sort
 from app.services.auth import require_admin
 
 router = APIRouter(prefix="/api/items", tags=["items"])
@@ -33,13 +35,27 @@ def _item_to_response(item: Item) -> ItemResponse:
 def list_items(
     page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=100),
     search: str = Query(""),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db), _admin: User = Depends(require_admin),
 ):
     query = db.query(Item)
     if search:
         query = query.filter(or_(Item.title.ilike(f"%{search}%"), Item.description.ilike(f"%{search}%")))
     total = query.count()
-    items = query.order_by(Item.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    if sort_by in {"category", "owner"}:
+        query = query.outerjoin(Item.category).outerjoin(Item.owner)
+    query = apply_sort(query, sort_by, sort_order, {
+        "title": Item.title,
+        "price": Item.price,
+        "type": Item.type,
+        "status": Item.status,
+        "category": Category.name,
+        "owner": User.name,
+        "created_at": Item.created_at,
+        "updated_at": Item.updated_at,
+    })
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
     return PaginatedResponse(
         items=[_item_to_response(i) for i in items],
         total=total, page=page, page_size=page_size,
