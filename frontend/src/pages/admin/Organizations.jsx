@@ -75,6 +75,25 @@ export default function OrganizationsPage() {
     setSaving(false);
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editItem) return;
+    const data = new FormData();
+    data.append('image', file);
+    try {
+      const res = await api.post(`/organizations/${editItem.id}/image`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setEditItem(res.data);
+      toast('Organization image updated successfully!', 'success');
+      fetchData();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Upload failed', 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -114,6 +133,15 @@ export default function OrganizationsPage() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? 'Edit Organization' : 'Create Organization'} size="md">
         <form onSubmit={handleSave} className="modal-form">
+          {editItem && (
+            <label className="image-upload-tile image-upload-tile--org">
+              <span className="entity-image entity-image--xl">
+                {editItem.image_url ? <img src={editItem.image_url} alt={editItem.name} /> : editItem.name?.[0]?.toUpperCase() || 'O'}
+              </span>
+              <input type="file" accept="image/*" onChange={handleImageUpload} />
+              <span className="image-upload-tile__overlay">Upload Image</span>
+            </label>
+          )}
           <Input id="org-name" label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <Input id="org-type" label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} placeholder="club, class, department" />
           <Input id="org-desc" label="Description" type="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

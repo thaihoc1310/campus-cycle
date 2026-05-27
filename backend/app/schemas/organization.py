@@ -22,6 +22,7 @@ class OrganizationResponse(BaseModel):
     name: str
     description: str | None
     type: str | None
+    image_url: str | None
     created_at: datetime
     updated_at: datetime
 

@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, Date, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,6 +17,9 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")  # admin, member
     user_type: Mapped[str] = mapped_column(String(50), nullable=True)  # student, teacher, staff
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active, inactive

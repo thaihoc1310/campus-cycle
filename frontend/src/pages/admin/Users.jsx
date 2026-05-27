@@ -16,13 +16,14 @@ import './Management.css';
 const columns = [
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
   { key: 'role', label: 'Role' },
   { key: 'user_type', label: 'Type' },
   { key: 'status', label: 'Status' },
   { key: 'actions', label: 'Actions', width: '100px' },
 ];
 
-const defaultForm = { name: '', email: '', password: '', role: 'member', user_type: 'student', status: 'active' };
+const defaultForm = { name: '', email: '', password: '', phone: '', date_of_birth: '', role: 'member', user_type: 'student', status: 'active' };
 const normalizeStatus = (status) => (status === 'active' ? 'active' : 'inactive');
 
 export default function UsersPage() {
@@ -62,7 +63,16 @@ export default function UsersPage() {
 
   const openEdit = (item) => {
     setEditItem(item);
-    setForm({ name: item.name, email: item.email, password: '', role: item.role, user_type: item.user_type || 'student', status: normalizeStatus(item.status) });
+    setForm({
+      name: item.name,
+      email: item.email,
+      password: '',
+      phone: item.phone || '',
+      date_of_birth: item.date_of_birth || '',
+      role: item.role,
+      user_type: item.user_type || 'student',
+      status: normalizeStatus(item.status),
+    });
     setModalOpen(true);
   };
 
@@ -84,6 +94,25 @@ export default function UsersPage() {
       toast(err.response?.data?.detail || 'Save failed', 'error');
     }
     setSaving(false);
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editItem) return;
+    const data = new FormData();
+    data.append('avatar', file);
+    try {
+      const res = await api.post(`/users/${editItem.id}/avatar`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setEditItem(res.data);
+      toast('Avatar updated successfully!', 'success');
+      fetchData();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Upload failed', 'error');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleDelete = async () => {
@@ -111,6 +140,7 @@ export default function UsersPage() {
         <tr key={item.id}>
           <td><strong>{item.name}</strong></td>
           <td>{item.email}</td>
+          <td>{item.phone || '—'}</td>
           <td><span className={`badge badge--${item.role}`}>{item.role}</span></td>
           <td>{item.user_type || '—'}</td>
           <td><span className={`badge badge--${normalizeStatus(item.status)}`}>{normalizeStatus(item.status)}</span></td>
@@ -127,24 +157,61 @@ export default function UsersPage() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? 'Edit User' : 'Create User'} size="md">
         <form onSubmit={handleSave} className="modal-form">
-          <Input id="user-name" label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input id="user-email" label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled={!!editItem} />
-          {!editItem && (
-            <Input id="user-password" label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
+          {editItem ? (
+            <>
+              <div className="user-edit-layout">
+                <label className="image-upload-tile image-upload-tile--avatar user-edit-layout__avatar">
+                  <span className="entity-avatar entity-avatar--xl">
+                    {editItem.avatar_url ? <img src={editItem.avatar_url} alt={editItem.name} /> : editItem.name?.[0]?.toUpperCase() || 'U'}
+                  </span>
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} />
+                  <span className="image-upload-tile__overlay">Upload Image</span>
+                </label>
+                <div className="user-edit-layout__fields">
+                  <Input id="user-name" label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                  <Input id="user-role" label="Role" type="select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </Input>
+                </div>
+              </div>
+              <div className="form-grid form-grid--2">
+                <Input id="user-email" label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled />
+                <Input id="user-phone" label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <Input id="user-dob" label="Date of Birth" type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
+                <Input id="user-type" label="User Type" type="select" value={form.user_type} onChange={(e) => setForm({ ...form, user_type: e.target.value })}>
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="staff">Staff</option>
+                </Input>
+                <Input id="user-status" label="Status" type="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </Input>
+              </div>
+            </>
+          ) : (
+            <div className="form-grid form-grid--2">
+              <Input id="user-name" label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <Input id="user-email" label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              <Input id="user-phone" label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Input id="user-dob" label="Date of Birth" type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
+              <Input id="user-password" label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
+              <Input id="user-role" label="Role" type="select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </Input>
+              <Input id="user-type" label="User Type" type="select" value={form.user_type} onChange={(e) => setForm({ ...form, user_type: e.target.value })}>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="staff">Staff</option>
+              </Input>
+              <Input id="user-status" label="Status" type="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Input>
+            </div>
           )}
-          <Input id="user-role" label="Role" type="select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-          </Input>
-          <Input id="user-type" label="User Type" type="select" value={form.user_type} onChange={(e) => setForm({ ...form, user_type: e.target.value })}>
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="staff">Staff</option>
-          </Input>
-          <Input id="user-status" label="Status" type="select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </Input>
           <div className="modal__actions">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving...' : editItem ? 'Save' : 'Create'}</Button>

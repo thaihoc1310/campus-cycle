@@ -144,7 +144,7 @@ input, select, textarea, button {
   background: #FEE2E2;
   color: #991B1B;
 }
-.badge--sold, .badge--refunded {
+.badge--sold, .badge--donated, .badge--refunded {
   background: #DBEAFE;
   color: #1E40AF;
 }

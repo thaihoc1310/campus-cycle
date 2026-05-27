@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, EmailStr
@@ -12,6 +12,8 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    phone: str | None = None
+    date_of_birth: date | None = None
     user_type: UserType | None = None
 
 
@@ -23,15 +25,32 @@ class AdminUserCreate(UserCreate):
 class UserUpdate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
+    phone: str | None = None
+    date_of_birth: date | None = None
     role: UserRole | None = None
     user_type: UserType | None = None
     status: UserStatus | None = None
+
+
+class ProfileUpdate(BaseModel):
+    name: str
+    phone: str | None = None
+    date_of_birth: date | None = None
+    user_type: UserType | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class UserResponse(BaseModel):
     id: UUID
     name: str
     email: str
+    avatar_url: str | None
+    phone: str | None
+    date_of_birth: date | None
     role: str
     user_type: str | None
     status: str

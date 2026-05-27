@@ -60,3 +60,12 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Admin access required",
         )
     return current_user
+
+
+def require_active_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is awaiting admin activation",
+        )
+    return current_user

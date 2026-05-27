@@ -51,7 +51,7 @@ export default function Sidebar() {
       <div className="sidebar__footer">
         <div className="sidebar__user">
           <div className="sidebar__avatar">
-            {user?.name?.[0]?.toUpperCase() || 'A'}
+            {user?.avatar_url ? <img src={user.avatar_url} alt={user?.name || 'Admin'} /> : user?.name?.[0]?.toUpperCase() || 'A'}
           </div>
           <div className="sidebar__user-info">
             <span className="sidebar__user-name">{user?.name}</span>

@@ -1,6 +1,6 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from app.schemas.user import UserResponse
 from app.schemas.common import PaginatedResponse
 from app.routers.sorting import apply_sort
 from app.services.auth import require_admin
+from app.services.uploads import delete_upload, replace_upload
 
 router = APIRouter(prefix="/api/organizations", tags=["organizations"])
 
@@ -109,6 +110,22 @@ def update_organization(
     return OrganizationResponse.model_validate(org)
 
 
+@router.post("/{org_id}/image", response_model=OrganizationResponse)
+def upload_organization_image(
+    org_id: str,
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    org.image_url = replace_upload(image, f"organizations/{org.id}", org.image_url)
+    db.commit()
+    db.refresh(org)
+    return OrganizationResponse.model_validate(org)
+
+
 @router.delete("/{org_id}", status_code=status.HTTP_200_OK)
 def delete_organization(
     org_id: str,
@@ -118,6 +135,7 @@ def delete_organization(
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    delete_upload(org.image_url)
     db.delete(org)
     db.commit()
     return {"message": "Organization deleted successfully"}

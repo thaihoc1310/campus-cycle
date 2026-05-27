@@ -11,7 +11,7 @@ export default function Register() {
   const { register, isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', dateOfBirth: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,8 +30,8 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password);
-      toast('Registration successful!', 'success');
+      await register(form.name, form.email, form.password, form.phone, form.dateOfBirth);
+      toast('Registration successful! Your account is awaiting admin activation.', 'success');
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
@@ -65,6 +65,14 @@ export default function Register() {
           <Input
             id="register-email" label="Email" type="email" placeholder="Enter your email"
             value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required
+          />
+          <Input
+            id="register-phone" label="Phone" placeholder="Enter your phone number"
+            value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+          <Input
+            id="register-dob" label="Date of Birth" type="date"
+            value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
           />
           <Input
             id="register-password" label="Password" type="password" placeholder="Min 6 characters"

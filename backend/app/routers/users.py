@@ -1,6 +1,6 @@
 import math
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.schemas.user import AdminUserCreate, UserResponse, UserUpdate
 from app.schemas.common import PaginatedResponse
 from app.routers.sorting import apply_sort
 from app.services.auth import require_admin, hash_password
+from app.services.uploads import delete_upload, replace_upload
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -30,12 +31,15 @@ def list_users(
             or_(
                 User.name.ilike(f"%{search}%"),
                 User.email.ilike(f"%{search}%"),
+                User.phone.ilike(f"%{search}%"),
             )
         )
     total = query.count()
     query = apply_sort(query, sort_by, sort_order, {
         "name": User.name,
         "email": User.email,
+        "phone": User.phone,
+        "date_of_birth": User.date_of_birth,
         "role": User.role,
         "user_type": User.user_type,
         "status": User.status,
@@ -70,6 +74,8 @@ def create_user(
         name=data.name,
         email=data.email,
         password=hash_password(data.password),
+        phone=data.phone,
+        date_of_birth=data.date_of_birth,
         role=data.role,
         user_type=data.user_type,
         status=data.status,
@@ -89,6 +95,22 @@ def get_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    return UserResponse.model_validate(user)
+
+
+@router.post("/{user_id}/avatar", response_model=UserResponse)
+def upload_user_avatar(
+    user_id: str,
+    avatar: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.avatar_url = replace_upload(avatar, f"avatars/{user.id}", user.avatar_url)
+    db.commit()
+    db.refresh(user)
     return UserResponse.model_validate(user)
 
 
@@ -121,6 +143,7 @@ def delete_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    delete_upload(user.avatar_url)
     db.delete(user)
     db.commit()
     return {"message": "User deleted successfully"}
