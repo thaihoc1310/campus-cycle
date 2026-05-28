@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Filter, Megaphone, Search, X } from 'lucide-react';
 import api from '../../api/client';
+import { useMediaQuery } from './clientUtils.js';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -129,6 +130,7 @@ function FeedSkeleton() {
 }
 
 export default function Campaigns() {
+  const isMobile = useMediaQuery('(max-width: 900px)');
   const [campaigns, setCampaigns] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -251,9 +253,24 @@ export default function Campaigns() {
 
         {/* Feed List */}
         <div className="feed-list">
-          {campaigns.map((campaign) => (
-            <CampaignFeedCard key={campaign.id} campaign={campaign} />
-          ))}
+          {isMobile ? (
+            campaigns.map((campaign) => (
+              <CampaignFeedCard key={campaign.id} campaign={campaign} />
+            ))
+          ) : (
+            <>
+              <div className="feed-column">
+                {campaigns.filter((_, idx) => idx % 2 === 0).map((campaign) => (
+                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
+                ))}
+              </div>
+              <div className="feed-column">
+                {campaigns.filter((_, idx) => idx % 2 !== 0).map((campaign) => (
+                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
+                ))}
+              </div>
+            </>
+          )}
 
           {loading && (
             <>

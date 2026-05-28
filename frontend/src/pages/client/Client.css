@@ -42,9 +42,16 @@
 }
 
 .feed-list {
-  display: block;
-  column-count: 2;
-  column-gap: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.feed-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 /* --- Feed Search Bar --- */
@@ -200,10 +207,8 @@
 
 /* --- Feed Card --- */
 .feed-card {
-  display: inline-block;
-  width: 100%;
-  margin-bottom: var(--space-4);
-  break-inside: avoid;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-xl);
   background: var(--bg);
   border: 1px solid var(--border);
@@ -448,19 +453,9 @@
   font-weight: 600;
 }
 
-.feed-card__chip--type {
-  background: #EDE9FE;
-  color: #5B21B6;
-}
-
 .feed-card__chip--org {
   background: #D1FAE5;
   color: #065F46;
-}
-
-.feed-card__chip--price {
-  background: #DBEAFE;
-  color: #1E40AF;
 }
 
 /* Feed Card Actions */
@@ -559,7 +554,7 @@
 /* --- Feed End & Loader --- */
 .feed-loader {
   height: 60px;
-  column-span: all;
+  grid-column: 1 / -1;
 }
 
 .feed-end {
@@ -568,11 +563,11 @@
   color: var(--gray-400);
   font-weight: 600;
   font-size: var(--font-size-sm);
-  column-span: all;
+  grid-column: 1 / -1;
 }
 
 .feed-empty {
-  column-span: all;
+  grid-column: 1 / -1;
 }
 
 .feed-card--skeleton {
@@ -581,7 +576,7 @@
 
 @media (max-width: 900px) {
   .feed-list {
-    column-count: 1;
+    grid-template-columns: 1fr;
   }
 
   .feed-container {

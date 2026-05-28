@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package } from 'lucide-react';
 import api from '../../api/client';
-import { money } from './clientUtils.js';
+import { money, useMediaQuery } from './clientUtils.js';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -221,19 +221,34 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, loading]);
 
+  const isMobile = useMediaQuery('(max-width: 900px)');
+
+  const renderCard = (entry, index) => {
+    if (entry.feed_type === 'item' && entry.item) {
+      return <FeedItemCard key={`item-${entry.item.id}-${index}`} item={entry.item} />;
+    }
+    if (entry.feed_type === 'campaign' && entry.campaign) {
+      return <FeedCampaignCard key={`campaign-${entry.campaign.id}-${index}`} campaign={entry.campaign} />;
+    }
+    return null;
+  };
+
   return (
     <div className="feed-page">
       <div className="feed-container">
         <div className="feed-list">
-          {feed.map((entry, index) => {
-            if (entry.feed_type === 'item' && entry.item) {
-              return <FeedItemCard key={`item-${entry.item.id}-${index}`} item={entry.item} />;
-            }
-            if (entry.feed_type === 'campaign' && entry.campaign) {
-              return <FeedCampaignCard key={`campaign-${entry.campaign.id}-${index}`} campaign={entry.campaign} />;
-            }
-            return null;
-          })}
+          {isMobile ? (
+            feed.map((entry, index) => renderCard(entry, index))
+          ) : (
+            <>
+              <div className="feed-column">
+                {feed.filter((_, idx) => idx % 2 === 0).map((entry, idx) => renderCard(entry, idx * 2))}
+              </div>
+              <div className="feed-column">
+                {feed.filter((_, idx) => idx % 2 !== 0).map((entry, idx) => renderCard(entry, idx * 2 + 1))}
+              </div>
+            </>
+          )}
 
           {loading && (
             <>

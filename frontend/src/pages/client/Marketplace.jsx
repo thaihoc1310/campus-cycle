@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, Search, X } from 'lucide-react';
 import api from '../../api/client';
-import { itemFeePreview, money } from './clientUtils.js';
+import { itemFeePreview, money, useMediaQuery } from './clientUtils.js';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -102,7 +102,6 @@ function MarketplaceItemCard({ item }) {
         )}
         <div className="feed-card__meta-row">
           {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
-          <span className="feed-card__chip feed-card__chip--price">Buyer total: {money(preview.buyerTotal)}</span>
         </div>
       </div>
 
@@ -136,6 +135,7 @@ function FeedSkeleton() {
 }
 
 export default function Marketplace() {
+  const isMobile = useMediaQuery('(max-width: 900px)');
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
@@ -262,9 +262,24 @@ export default function Marketplace() {
 
         {/* Feed List */}
         <div className="feed-list">
-          {items.map((item) => (
-            <MarketplaceItemCard key={item.id} item={item} />
-          ))}
+          {isMobile ? (
+            items.map((item) => (
+              <MarketplaceItemCard key={item.id} item={item} />
+            ))
+          ) : (
+            <>
+              <div className="feed-column">
+                {items.filter((_, idx) => idx % 2 === 0).map((item) => (
+                  <MarketplaceItemCard key={item.id} item={item} />
+                ))}
+              </div>
+              <div className="feed-column">
+                {items.filter((_, idx) => idx % 2 !== 0).map((item) => (
+                  <MarketplaceItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            </>
+          )}
 
           {loading && (
             <>
