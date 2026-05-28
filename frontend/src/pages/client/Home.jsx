@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Megaphone, Package, PlusCircle, Recycle } from 'lucide-react';
+import { ArrowRight, Megaphone, Package, PlusCircle, Recycle, ShieldCheck } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
 import { money } from './clientUtils.js';
@@ -17,7 +17,7 @@ function MiniItem({ item }) {
         <h3 className="client-card__title">{item.title}</h3>
         <div className="client-card__footer">
           <span className="client-price">{item.type === 'donate' ? 'Fee only' : money(item.price)}</span>
-          <span className="text-muted">View</span>
+          <span className="text-muted">View →</span>
         </div>
       </div>
     </Link>
@@ -35,7 +35,7 @@ function MiniCampaign({ campaign }) {
         <h3 className="client-card__title">{campaign.title}</h3>
         <div className="client-card__footer">
           <span className="text-muted">{campaign.organization_name || 'Campus'}</span>
-          <span className="text-muted">Open</span>
+          <span className="text-muted">Open →</span>
         </div>
       </div>
     </Link>
@@ -67,16 +67,25 @@ export default function Home() {
         </div>
         <div className="client-hero__panel">
           <div className="client-stat-block">
-            <strong>{items.length}</strong>
-            <span>approved item previews</span>
+            <span className="client-stat-block__icon client-stat-block__icon--blue"><Package size={22} /></span>
+            <div>
+              <strong>{items.length}</strong>
+              <span>approved item previews</span>
+            </div>
           </div>
           <div className="client-stat-block">
-            <strong>{campaigns.length}</strong>
-            <span>active campaign previews</span>
+            <span className="client-stat-block__icon client-stat-block__icon--green"><Megaphone size={22} /></span>
+            <div>
+              <strong>{campaigns.length}</strong>
+              <span>active campaign previews</span>
+            </div>
           </div>
           <div className="client-stat-block">
-            <Recycle size={32} color="var(--secondary)" />
-            <span>Every listing is reviewed before it appears publicly.</span>
+            <span className="client-stat-block__icon client-stat-block__icon--amber"><ShieldCheck size={22} /></span>
+            <div>
+              <strong>Verified</strong>
+              <span>Every listing is reviewed before it appears publicly.</span>
+            </div>
           </div>
         </div>
       </section>
@@ -87,9 +96,17 @@ export default function Home() {
             <h2 className="client-section__title">Fresh Items</h2>
             <p className="client-section__copy">Approved listings ready for campus handoff.</p>
           </div>
-          <Button variant="secondary" onClick={() => window.location.assign('/marketplace')}>View all</Button>
+          <Link className="btn btn--secondary btn--md" to="/marketplace">View all <ArrowRight size={16} /></Link>
         </div>
-        {items.length ? <div className="client-grid">{items.map((item) => <MiniItem key={item.id} item={item} />)}</div> : <div className="client-empty">No approved items yet.</div>}
+        {items.length ? (
+          <div className="client-grid">{items.map((item) => <MiniItem key={item.id} item={item} />)}</div>
+        ) : (
+          <div className="client-empty">
+            <span className="client-empty__icon"><Package size={28} /></span>
+            <span className="client-empty__title">No items yet</span>
+            <span className="client-empty__copy">Approved items will appear here. Check back soon!</span>
+          </div>
+        )}
       </section>
 
       <section className="client-section">
@@ -98,11 +115,18 @@ export default function Home() {
             <h2 className="client-section__title">Campaigns</h2>
             <p className="client-section__copy">Fundraising and item donation drives approved by campus admins.</p>
           </div>
-          <Button variant="secondary" onClick={() => window.location.assign('/campaigns')}>View all</Button>
+          <Link className="btn btn--secondary btn--md" to="/campaigns">View all <ArrowRight size={16} /></Link>
         </div>
-        {campaigns.length ? <div className="client-grid">{campaigns.map((campaign) => <MiniCampaign key={campaign.id} campaign={campaign} />)}</div> : <div className="client-empty">No approved campaigns yet.</div>}
+        {campaigns.length ? (
+          <div className="client-grid">{campaigns.map((campaign) => <MiniCampaign key={campaign.id} campaign={campaign} />)}</div>
+        ) : (
+          <div className="client-empty">
+            <span className="client-empty__icon"><Megaphone size={28} /></span>
+            <span className="client-empty__title">No campaigns yet</span>
+            <span className="client-empty__copy">Approved campaigns will appear here once available.</span>
+          </div>
+        )}
       </section>
     </div>
   );
 }
-

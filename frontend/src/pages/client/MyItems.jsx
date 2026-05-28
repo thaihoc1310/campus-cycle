@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { Package, PlusCircle } from 'lucide-react';
 import api from '../../api/client';
 import Pagination from '../../components/ui/Pagination.jsx';
 import { money } from './clientUtils.js';
@@ -16,6 +16,14 @@ export default function MyItems() {
       .catch(() => {});
   }, [page]);
 
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    data.items.forEach((item) => {
+      counts[item.status] = (counts[item.status] || 0) + 1;
+    });
+    return counts;
+  }, [data.items]);
+
   return (
     <div className="client-page">
       <div className="client-section__header">
@@ -23,8 +31,19 @@ export default function MyItems() {
           <h1 className="client-section__title">My Items</h1>
           <p className="client-section__copy">Track campus review status and public visibility.</p>
         </div>
-        <Link className="btn btn--primary btn--md" to="/post-item">Post Item</Link>
+        <Link className="btn btn--primary btn--md" to="/post-item"><PlusCircle size={16} /> Post Item</Link>
       </div>
+
+      {data.items.length > 0 && Object.keys(statusCounts).length > 0 && (
+        <div className="client-status-summary">
+          {Object.entries(statusCounts).map(([status, count]) => (
+            <div key={status} className="client-status-summary__item">
+              <span className={`client-status-summary__dot client-status-summary__dot--${status}`} />
+              <span>{count} {status}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {data.items.length ? (
         <div className="client-grid">
@@ -48,10 +67,14 @@ export default function MyItems() {
           ))}
         </div>
       ) : (
-        <div className="client-empty">You have not posted any items yet.</div>
+        <div className="client-empty">
+          <span className="client-empty__icon"><Package size={28} /></span>
+          <span className="client-empty__title">No items posted yet</span>
+          <span className="client-empty__copy">List your first item for campus reuse. All items go through admin review before going public.</span>
+          <Link className="btn btn--primary btn--md" to="/post-item"><PlusCircle size={16} /> Post Your First Item</Link>
+        </div>
       )}
       <Pagination page={data.page} pages={data.pages} onPageChange={setPage} />
     </div>
   );
 }
-

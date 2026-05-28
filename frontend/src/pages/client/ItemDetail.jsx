@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { ChevronRight, Package } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -43,10 +43,28 @@ export default function ItemDetail() {
     }
   };
 
-  if (!item) return <div className="client-page"><div className="client-empty">Loading item...</div></div>;
+  if (!item) {
+    return (
+      <div className="client-page">
+        <div className="client-skeleton">
+          <div className="client-skeleton__block client-skeleton__block--title" />
+          <div className="client-skeleton__block client-skeleton__block--hero" />
+          <div className="client-skeleton__block client-skeleton__block--text" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="client-page">
+      <nav className="client-breadcrumb">
+        <Link to="/">Home</Link>
+        <ChevronRight size={14} className="client-breadcrumb__sep" />
+        <Link to="/marketplace">Marketplace</Link>
+        <ChevronRight size={14} className="client-breadcrumb__sep" />
+        <span className="client-breadcrumb__current">{item.title}</span>
+      </nav>
+
       <div className="client-detail">
         <section>
           <div className="client-detail__media">
@@ -76,7 +94,7 @@ export default function ItemDetail() {
               <div className="client-breakdown__row"><span>Buyer total</span><strong>{money(preview.buyerTotal)}</strong></div>
             </div>
           )}
-          <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying}>
+          <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
             {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
           </Button>
           {user?.status !== 'active' && <p className="text-muted">Admin activation is required before buying items.</p>}

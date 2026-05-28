@@ -47,10 +47,158 @@
   color: var(--danger);
 }
 
-select.input-field {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
+/* ==============================
+   CUSTOM SELECT / COMBOBOX
+   ============================== */
+.custom-select {
+  position: relative;
+}
+
+.custom-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  cursor: pointer;
+  text-align: left;
+  min-height: 42px;
+}
+
+.custom-select__trigger--open {
+  background: var(--bg);
+  border-color: var(--primary);
+}
+
+.custom-select__value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select__value--placeholder {
+  color: var(--gray-400);
+}
+
+.custom-select__chevron {
+  flex-shrink: 0;
+  color: var(--gray-500);
+  transition: transform var(--transition-normal);
+}
+
+.custom-select__chevron--open {
+  transform: rotate(180deg);
+}
+
+/* --- Dropdown Panel --- */
+.custom-select__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  margin: 0;
+  list-style: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 36px rgba(17, 24, 39, 0.14), 0 4px 12px rgba(17, 24, 39, 0.08);
+  animation: selectDropIn 0.15s ease both;
+}
+
+@keyframes selectDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Scrollbar inside dropdown --- */
+.custom-select__dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-select__dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-select__dropdown::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+}
+
+/* --- Option Items --- */
+.custom-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--fg);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.custom-select__option:hover {
+  background: var(--muted);
+}
+
+.custom-select__option--selected {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.custom-select__option--selected:hover {
+  background: rgba(59, 130, 246, 0.14);
+}
+
+/* --- Dark context (e.g. inside client-side-panel) --- */
+.client-side-panel .custom-select__trigger {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.client-side-panel .custom-select__trigger--open {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.client-side-panel .custom-select__value--placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.client-side-panel .custom-select__chevron {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.client-side-panel .custom-select__dropdown {
+  background: var(--gray-800);
+  border-color: var(--gray-700);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+}
+
+.client-side-panel .custom-select__option {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.client-side-panel .custom-select__option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.client-side-panel .custom-select__option--selected {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93C5FD;
+}
+
+.client-side-panel .custom-select__option--selected:hover {
+  background: rgba(59, 130, 246, 0.3);
 }

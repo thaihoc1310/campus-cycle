@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { Package, Search } from 'lucide-react';
 import api from '../../api/client';
 import Input from '../../components/ui/Input.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
@@ -8,7 +8,7 @@ import { itemFeePreview, money } from './clientUtils.js';
 import './Client.css';
 
 export default function Marketplace() {
-  const [items, setItems] = useState({ items: [], page: 1, pages: 1 });
+  const [items, setItems] = useState({ items: [], page: 1, pages: 1, total: 0 });
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ search: '', item_type: '', category_id: '' });
@@ -32,7 +32,7 @@ export default function Marketplace() {
       <div className="client-section__header">
         <div>
           <h1 className="client-section__title">Marketplace</h1>
-          <p className="client-section__copy">Approved sell and donate listings. Donate listings still go through View and Buy with platform fee only.</p>
+          <p className="client-section__copy">Approved sell and donate listings. Donate listings include platform fee only.</p>
         </div>
       </div>
 
@@ -47,6 +47,12 @@ export default function Marketplace() {
           <option value="">All categories</option>
           {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
         </Input>
+        {items.items.length > 0 && (
+          <div className="client-toolbar__info">
+            <span>{items.total || items.items.length} item{(items.total || items.items.length) !== 1 ? 's' : ''} found</span>
+            <span>Page {items.page} of {items.pages}</span>
+          </div>
+        )}
       </div>
 
       {items.items.length ? (
@@ -65,7 +71,7 @@ export default function Marketplace() {
                   </div>
                   <h2 className="client-card__title">{item.title}</h2>
                   <div className="client-card__footer">
-                    <span className="client-price">{item.type === 'donate' ? money(preview.buyerTotal) : money(preview.buyerTotal)}</span>
+                    <span className="client-price">{money(preview.buyerTotal)}</span>
                     <span className="text-muted">{item.type === 'donate' ? 'fee only' : 'buyer total'}</span>
                   </div>
                 </div>
@@ -74,10 +80,13 @@ export default function Marketplace() {
           })}
         </div>
       ) : (
-        <div className="client-empty">No approved items match these filters.</div>
+        <div className="client-empty">
+          <span className="client-empty__icon"><Search size={28} /></span>
+          <span className="client-empty__title">No items found</span>
+          <span className="client-empty__copy">No approved items match these filters. Try adjusting your search or check back later.</span>
+        </div>
       )}
       <Pagination page={items.page} pages={items.pages} onPageChange={setPage} />
     </div>
   );
 }
-

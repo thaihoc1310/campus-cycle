@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -24,7 +25,11 @@ export default function PostItem() {
     return (
       <div className="client-page">
         <div className="client-empty">
-          Your account is awaiting admin activation. You can browse items and campaigns, but cannot post items yet.
+          <span className="client-empty__icon"><FileText size={28} /></span>
+          <span className="client-empty__title">Account awaiting activation</span>
+          <span className="client-empty__copy">
+            Your account is awaiting admin activation. You can browse items and campaigns, but cannot post items yet.
+          </span>
         </div>
       </div>
     );
@@ -53,6 +58,17 @@ export default function PostItem() {
   return (
     <div className="client-page">
       <form className="client-form-panel" onSubmit={handleSubmit}>
+        <div className="client-step-indicator">
+          <span className="client-step-indicator__dot">1</span>
+          <span className="client-step-indicator__text">Fill in details</span>
+          <span>→</span>
+          <span className="client-step-indicator__dot" style={{ background: 'var(--gray-300)' }}>2</span>
+          <span>Submit for review</span>
+          <span>→</span>
+          <span className="client-step-indicator__dot" style={{ background: 'var(--gray-300)' }}>3</span>
+          <span>Goes live after approval</span>
+        </div>
+
         <div>
           <h1 className="client-section__title">Post Item</h1>
           <p className="client-section__copy">Every listing starts as pending and appears publicly only after campus admin approval.</p>

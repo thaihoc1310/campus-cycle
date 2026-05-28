@@ -96,19 +96,22 @@
 
 .user-edit-layout {
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
-  align-items: stretch;
+  align-items: start;
 }
 
 .user-edit-layout__avatar {
+  justify-self: center;
+  align-self: center;
   min-height: 148px;
 }
 
 .user-edit-layout__fields {
   display: grid;
-  grid-template-rows: 1fr 1fr;
   gap: var(--space-4);
+  align-content: start;
+  width: 100%;
 }
 
 .image-upload-tile {

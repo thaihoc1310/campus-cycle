@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Megaphone } from 'lucide-react';
+import { Megaphone, Search } from 'lucide-react';
 import api from '../../api/client';
 import Input from '../../components/ui/Input.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
 import './Client.css';
 
 export default function Campaigns() {
-  const [data, setData] = useState({ items: [], page: 1, pages: 1 });
+  const [data, setData] = useState({ items: [], page: 1, pages: 1, total: 0 });
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ search: '', campaign_type: '' });
 
@@ -41,6 +41,12 @@ export default function Campaigns() {
           <option value="donation">Donation</option>
         </Input>
         <div />
+        {data.items.length > 0 && (
+          <div className="client-toolbar__info">
+            <span>{data.total || data.items.length} campaign{(data.total || data.items.length) !== 1 ? 's' : ''} found</span>
+            <span>Page {data.page} of {data.pages}</span>
+          </div>
+        )}
       </div>
 
       {data.items.length ? (
@@ -58,17 +64,20 @@ export default function Campaigns() {
                 <h2 className="client-card__title">{campaign.title}</h2>
                 <div className="client-card__footer">
                   <span className="text-muted">{campaign.type === 'fundraising' ? 'Donate money' : 'Donate item'}</span>
-                  <span className="text-muted">View</span>
+                  <span className="text-muted">View →</span>
                 </div>
               </div>
             </Link>
           ))}
         </div>
       ) : (
-        <div className="client-empty">No approved campaigns match these filters.</div>
+        <div className="client-empty">
+          <span className="client-empty__icon"><Search size={28} /></span>
+          <span className="client-empty__title">No campaigns found</span>
+          <span className="client-empty__copy">No approved campaigns match these filters. Try adjusting your search.</span>
+        </div>
       )}
       <Pagination page={data.page} pages={data.pages} onPageChange={setPage} />
     </div>
   );
 }
-

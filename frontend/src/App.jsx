@@ -12,6 +12,10 @@ import MyItems from './pages/client/MyItems.jsx';
 import ClientCampaigns from './pages/client/Campaigns.jsx';
 import CampaignDetail from './pages/client/CampaignDetail.jsx';
 import Profile from './pages/client/Profile.jsx';
+import OrgDashboard from './pages/org/OrgDashboard.jsx';
+import OrgCampaigns from './pages/org/OrgCampaigns.jsx';
+import OrgCampaignDetail from './pages/org/OrgCampaignDetail.jsx';
+import OrgInfo from './pages/org/OrgInfo.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
 import Users from './pages/admin/Users.jsx';
 import Organizations from './pages/admin/Organizations.jsx';
@@ -46,6 +50,10 @@ export default function App() {
         <Route path="campaigns" element={<ClientCampaigns />} />
         <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="org/:orgId" element={<OrgDashboard />} />
+        <Route path="org/:orgId/campaigns" element={<OrgCampaigns />} />
+        <Route path="org/:orgId/campaigns/:campaignId" element={<OrgCampaignDetail />} />
+        <Route path="org/:orgId/info" element={<OrgInfo />} />
       </Route>
 
       {/* Admin Routes */}

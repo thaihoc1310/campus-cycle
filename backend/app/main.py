@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import auth, users, organizations, categories, items, campaigns, transactions, dashboard, client
+from app.routers import auth, users, organizations, categories, items, campaigns, transactions, dashboard, client, org
 
 app = FastAPI(title="Campus Cycle API", version="1.0.0")
 
@@ -32,6 +32,7 @@ app.include_router(campaigns.router)
 app.include_router(transactions.router)
 app.include_router(dashboard.router)
 app.include_router(client.router)
+app.include_router(org.router)
 
 
 @app.get("/api/health")

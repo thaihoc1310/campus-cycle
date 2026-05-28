@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Megaphone } from 'lucide-react';
+import { ChevronRight, Megaphone } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -57,10 +57,28 @@ export default function CampaignDetail() {
     }
   };
 
-  if (!campaign) return <div className="client-page"><div className="client-empty">Loading campaign...</div></div>;
+  if (!campaign) {
+    return (
+      <div className="client-page">
+        <div className="client-skeleton">
+          <div className="client-skeleton__block client-skeleton__block--title" />
+          <div className="client-skeleton__block client-skeleton__block--hero" />
+          <div className="client-skeleton__block client-skeleton__block--text" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="client-page">
+      <nav className="client-breadcrumb">
+        <Link to="/">Home</Link>
+        <ChevronRight size={14} className="client-breadcrumb__sep" />
+        <Link to="/campaigns">Campaigns</Link>
+        <ChevronRight size={14} className="client-breadcrumb__sep" />
+        <span className="client-breadcrumb__current">{campaign.title}</span>
+      </nav>
+
       <div className="client-detail">
         <section>
           <div className="client-detail__media">
@@ -106,7 +124,10 @@ export default function CampaignDetail() {
                   {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
                 </>
               ) : (
-                <div className="client-empty">Create a donate item first, then submit it to this campaign.</div>
+                <div className="client-empty" style={{ border: 'none', padding: 'var(--space-6)' }}>
+                  <span className="client-empty__icon"><Megaphone size={24} /></span>
+                  <span className="client-empty__copy">Create a donate item first, then submit it to this campaign.</span>
+                </div>
               )}
               <Link className="btn btn--secondary btn--lg" to="/post-item">Post Donate Item</Link>
             </>
