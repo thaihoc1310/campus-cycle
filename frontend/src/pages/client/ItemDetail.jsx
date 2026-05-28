@@ -102,17 +102,9 @@ export default function ItemDetail() {
         {item.type === 'sell' && (
           <aside className="client-side-panel">
             <div>
-              <p className="text-muted">Marketplace purchase</p>
-              <h2>{money(item.price)}</h2>
+              <p className="text-muted">Final Price (including fees)</p>
+              <h2>{preview ? money(preview.buyerTotal) : money(item.price)}</h2>
             </div>
-            {preview && (
-            <div className="client-breakdown">
-              <div className="client-breakdown__row"><span>Item price</span><strong>{money(preview.itemPrice)}</strong></div>
-              <div className="client-breakdown__row"><span>Buyer platform fee</span><strong>{money(preview.buyerPlatformFee)}</strong></div>
-              <div className="client-breakdown__row"><span>Seller platform fee</span><strong>{money(preview.sellerPlatformFee)}</strong></div>
-              <div className="client-breakdown__row"><span>Buyer total</span><strong>{money(preview.buyerTotal)}</strong></div>
-            </div>
-            )}
             <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
               {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
             </Button>

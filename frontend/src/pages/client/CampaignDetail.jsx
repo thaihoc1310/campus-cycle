@@ -207,10 +207,6 @@ export default function CampaignDetail() {
                   <p className="text-muted">Item donation</p>
                   <h2>Create a donate item</h2>
                 </div>
-                <div className="client-empty" style={{ border: 'none', padding: 'var(--space-6)' }}>
-                  <span className="client-empty__icon"><Megaphone size={24} /></span>
-                  <span className="client-empty__copy">Create a donate item for this campaign and it will be submitted to campus review first.</span>
-                </div>
                 <Link className="btn btn--primary btn--lg" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
                 {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
               </>

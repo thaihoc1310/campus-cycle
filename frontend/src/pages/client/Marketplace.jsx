@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, Search, Share2, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, Search, X } from 'lucide-react';
 import api from '../../api/client';
 import { itemFeePreview, money } from './clientUtils.js';
 import './Client.css';
@@ -106,10 +106,7 @@ function MarketplaceItemCard({ item }) {
         </div>
       </div>
 
-      <div className="feed-card__actions feed-card__actions--split">
-        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/items/${item.id}`); }}>
-          <Share2 size={18} />
-        </button>
+      <div className="feed-card__actions">
         <Link to={`/items/${item.id}`} className="feed-card__action feed-card__action--primary">
           <span>Buy Now</span>
           <ArrowRight size={18} />

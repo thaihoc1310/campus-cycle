@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Filter, Megaphone, Search, Share2, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, Megaphone, Search, X } from 'lucide-react';
 import api from '../../api/client';
 import './Client.css';
 
@@ -99,10 +99,7 @@ function CampaignFeedCard({ campaign }) {
         )}
       </div>
 
-      <div className="feed-card__actions feed-card__actions--split">
-        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/campaigns/${campaign.id}`); }}>
-          <Share2 size={18} />
-        </button>
+      <div className="feed-card__actions">
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__action feed-card__action--primary">
           <span>{campaign.type === 'fundraising' ? 'Donate Now' : 'View Campaign'}</span>
           <ArrowRight size={18} />

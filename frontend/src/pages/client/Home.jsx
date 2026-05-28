@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package, Share2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package } from 'lucide-react';
 import api from '../../api/client';
 import { money } from './clientUtils.js';
 import './Client.css';
@@ -111,10 +111,7 @@ function FeedItemCard({ item }) {
         </div>
       </div>
 
-      <div className="feed-card__actions feed-card__actions--split">
-        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/items/${item.id}`); }}>
-          <Share2 size={18} />
-        </button>
+      <div className="feed-card__actions">
         <Link to={`/items/${item.id}`} className="feed-card__action feed-card__action--primary">
           <span>{item.type === 'sell' ? 'Buy Now' : 'View Item'}</span>
           <ArrowRight size={18} />
@@ -150,10 +147,7 @@ function FeedCampaignCard({ campaign }) {
         )}
       </div>
 
-      <div className="feed-card__actions feed-card__actions--split">
-        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/campaigns/${campaign.id}`); }}>
-          <Share2 size={18} />
-        </button>
+      <div className="feed-card__actions">
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__action feed-card__action--primary">
           <span>{campaign.type === 'fundraising' ? 'Donate Now' : 'View Campaign'}</span>
           <ArrowRight size={18} />
