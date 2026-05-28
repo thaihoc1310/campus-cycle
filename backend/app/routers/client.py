@@ -322,10 +322,20 @@ def list_items(
 def list_my_items(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=60),
+    search: str | None = Query(None),
+    category_id: int | None = Query(None),
+    status: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(Item).filter(Item.user_id == current_user.id)
+    if search:
+        query = query.filter(Item.title.ilike(f"%{search}%"))
+    if category_id:
+        query = query.filter(Item.category_id == category_id)
+    if status:
+        query = query.filter(Item.status == status)
+
     total = query.count()
     items = query.order_by(Item.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return PaginatedResponse(

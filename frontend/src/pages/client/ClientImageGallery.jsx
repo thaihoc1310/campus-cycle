@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Maximize2, Package } from 'lucide-react';
-import Modal from '../../components/ui/Modal.jsx';
+import { createPortal } from 'react-dom';
+import { ChevronLeft, ChevronRight, Maximize2, Package, X } from 'lucide-react';
 import './Client.css';
 
 function imagePath(image) {
@@ -51,9 +51,83 @@ export default function ClientImageGallery({ images = [], title = 'Image', fallb
     };
   }, [paths.length, updateStripControls, variant]);
 
+  // Keyboard navigation for premium Lightbox
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+      } else if (e.key === 'ArrowLeft' && paths.length > 1) {
+        setActiveIndex((prev) => (prev === 0 ? paths.length - 1 : prev - 1));
+      } else if (e.key === 'ArrowRight' && paths.length > 1) {
+        setActiveIndex((prev) => (prev === paths.length - 1 ? 0 : prev + 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxOpen, paths.length]);
+
+  const handlePrev = (e) => {
+    e.stopPropagation();
+    setActiveIndex((prev) => (prev === 0 ? paths.length - 1 : prev - 1));
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setActiveIndex((prev) => (prev === paths.length - 1 ? 0 : prev + 1));
+  };
+
+  // Premium Lightbox Overlay component
+  const renderLightbox = () => {
+    if (!lightboxOpen) return null;
+    return createPortal(
+      <div className="client-lightbox" onClick={() => setLightboxOpen(false)}>
+        <button
+          type="button"
+          className="client-lightbox__close"
+          onClick={() => setLightboxOpen(false)}
+          aria-label="Close image lightbox"
+        >
+          <X size={24} />
+        </button>
+
+        {paths.length > 1 && (
+          <>
+            <button
+              type="button"
+              className="client-lightbox__arrow client-lightbox__arrow--left"
+              onClick={handlePrev}
+              aria-label="Previous image"
+            >
+              <ChevronLeft size={32} />
+            </button>
+            <button
+              type="button"
+              className="client-lightbox__arrow client-lightbox__arrow--right"
+              onClick={handleNext}
+              aria-label="Next image"
+            >
+              <ChevronRight size={32} />
+            </button>
+          </>
+        )}
+
+        <div className="client-lightbox__content" onClick={(e) => e.stopPropagation()}>
+          <img src={paths[activeIndex]} alt={title} className="client-lightbox__img" />
+          {paths.length > 1 && (
+            <div className="client-lightbox__counter">
+              {activeIndex + 1} / {paths.length}
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   if (!paths.length) {
     return (
-      <div className="client-image-gallery client-image-gallery--empty">
+      <div className="client-image-gallery client-image-gallery--empty client-image-gallery--single">
         <div className="client-image-gallery__main">
           {fallbackIcon}
         </div>
@@ -89,11 +163,7 @@ export default function ClientImageGallery({ images = [], title = 'Image', fallb
           </div>
         )}
 
-        <Modal isOpen={lightboxOpen} onClose={() => setLightboxOpen(false)} title={title} size="xl">
-          <div className="client-image-lightbox">
-            <img src={activePath} alt={title} />
-          </div>
-        </Modal>
+        {renderLightbox()}
       </div>
     );
   }
@@ -130,17 +200,13 @@ export default function ClientImageGallery({ images = [], title = 'Image', fallb
           </button>
         )}
 
-        <Modal isOpen={lightboxOpen} onClose={() => setLightboxOpen(false)} title={title} size="xl">
-          <div className="client-image-lightbox">
-            <img src={activePath} alt={title} />
-          </div>
-        </Modal>
+        {renderLightbox()}
       </div>
     );
   }
 
   return (
-    <div className="client-image-gallery">
+    <div className={`client-image-gallery ${paths.length <= 1 ? 'client-image-gallery--single' : ''}`}>
       {paths.length > 1 && (
         <div className="client-image-gallery__thumbs">
           {paths.slice(0, 6).map((path, index) => (
@@ -162,11 +228,7 @@ export default function ClientImageGallery({ images = [], title = 'Image', fallb
         <span className="client-image-gallery__expand"><Maximize2 size={16} /> View</span>
       </button>
 
-      <Modal isOpen={lightboxOpen} onClose={() => setLightboxOpen(false)} title={title} size="xl">
-        <div className="client-image-lightbox">
-          <img src={activePath} alt={title} />
-        </div>
-      </Modal>
+      {renderLightbox()}
     </div>
   );
 }

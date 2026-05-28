@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ImagePlus, MoreVertical, Package, Pencil, PlusCircle, Star, Trash2, X } from 'lucide-react';
+import { ArrowRight, Filter, ImagePlus, MoreVertical, Package, Pencil, PlusCircle, Search, Star, Trash2, X } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
@@ -262,17 +262,28 @@ export default function MyItems() {
   const [data, setData] = useState({ items: [], page: 1, pages: 1 });
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({ search: '', category_id: '', status: '' });
+  const [showFilters, setShowFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState('');
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const searchTimer = useRef(null);
 
   const fetchItems = useCallback(() => {
-    api.get('/client/items/my', { params: { page, page_size: 60 } })
+    const params = {
+      page,
+      page_size: 60,
+    };
+    if (filters.search) params.search = filters.search;
+    if (filters.category_id) params.category_id = filters.category_id;
+    if (filters.status) params.status = filters.status;
+
+    api.get('/client/items/my', { params })
       .then((res) => setData(res.data))
       .catch(() => {});
-  }, [page]);
+  }, [page, filters]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { api.get('/client/categories').then((res) => setCategories(res.data)).catch(() => {}); }, []);
@@ -282,6 +293,33 @@ export default function MyItems() {
     document.addEventListener('click', closeMenu);
     return () => document.removeEventListener('click', closeMenu);
   }, []);
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      setFilters((f) => ({ ...f, search: value }));
+    }, 400);
+  };
+
+  const handleCategoryChange = (e) => {
+    setPage(1);
+    setFilters((f) => ({ ...f, category_id: e.target.value }));
+  };
+
+  const handleStatusChange = (e) => {
+    setPage(1);
+    setFilters((f) => ({ ...f, status: e.target.value }));
+  };
+
+  const clearFilters = () => {
+    setPage(1);
+    setFilters({ search: '', category_id: '', status: '' });
+    setShowFilters(false);
+  };
+
+  const hasActiveFilters = filters.search || filters.category_id || filters.status;
 
   const statusCounts = useMemo(() => {
     const counts = {};
@@ -363,6 +401,68 @@ export default function MyItems() {
         <Link className="btn btn--primary btn--md" to="/sell-item"><PlusCircle size={16} /> Sell Item</Link>
       </div>
 
+      {/* Search & Filters */}
+      <div className="feed-search-bar" style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div className="feed-search-bar__input-wrap">
+          <Search size={18} className="feed-search-bar__icon" />
+          <input
+            id="my-items-search"
+            type="text"
+            placeholder="Search my items..."
+            defaultValue={filters.search}
+            onChange={handleSearchChange}
+            className="feed-search-bar__input"
+          />
+        </div>
+        <button
+          type="button"
+          className={`feed-search-bar__filter-btn ${showFilters ? 'feed-search-bar__filter-btn--active' : ''}`}
+          onClick={() => setShowFilters((s) => !s)}
+        >
+          <Filter size={18} />
+          <span>Filters</span>
+        </button>
+        {hasActiveFilters && (
+          <button type="button" className="feed-search-bar__clear" onClick={clearFilters}>
+            <X size={14} />
+            <span>Clear</span>
+          </button>
+        )}
+      </div>
+
+      {showFilters && (
+        <div className="feed-filters" style={{ marginBottom: 'var(--space-6)' }}>
+          <div className="feed-filters__group">
+            <label className="feed-filters__label" htmlFor="my-items-category">Category</label>
+            <select
+              id="my-items-category"
+              className="feed-filters__select"
+              value={filters.category_id}
+              onChange={handleCategoryChange}
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="feed-filters__group">
+            <label className="feed-filters__label" htmlFor="my-items-status">Status</label>
+            <select
+              id="my-items-status"
+              className="feed-filters__select"
+              value={filters.status}
+              onChange={handleStatusChange}
+            >
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {data.items.length > 0 && Object.keys(statusCounts).length > 0 && (
         <div className="client-status-summary">
           {Object.entries(statusCounts).map(([status, count]) => (
@@ -380,6 +480,13 @@ export default function MyItems() {
           {renderSection('Donation Items', 'Items submitted to donation campaigns.', donationItems)}
           <Pagination page={data.page} pages={data.pages} onPageChange={setPage} />
         </>
+      ) : hasActiveFilters ? (
+        <div className="client-empty">
+          <span className="client-empty__icon"><Search size={28} /></span>
+          <span className="client-empty__title">No items found</span>
+          <span className="client-empty__copy">Try adjusting or clearing your filters.</span>
+          <Button variant="secondary" onClick={clearFilters}>Clear Filters</Button>
+        </div>
       ) : (
         <div className="client-empty">
           <span className="client-empty__icon"><Package size={28} /></span>
