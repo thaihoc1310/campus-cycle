@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
 
@@ -28,7 +29,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
     if (e.target === overlayRef.current) onClose();
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" ref={overlayRef} onClick={handleOverlayClick}>
       <div className={`modal modal--${size}`}>
         <div className="modal__header">
@@ -41,6 +42,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

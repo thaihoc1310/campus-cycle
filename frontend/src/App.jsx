@@ -8,6 +8,8 @@ import Home from './pages/client/Home.jsx';
 import Marketplace from './pages/client/Marketplace.jsx';
 import ItemDetail from './pages/client/ItemDetail.jsx';
 import PostItem from './pages/client/PostItem.jsx';
+import SellItem from './pages/client/SellItem.jsx';
+import DonateItem from './pages/client/DonateItem.jsx';
 import MyItems from './pages/client/MyItems.jsx';
 import ClientCampaigns from './pages/client/Campaigns.jsx';
 import CampaignDetail from './pages/client/CampaignDetail.jsx';
@@ -46,9 +48,11 @@ export default function App() {
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="items/:itemId" element={<ItemDetail />} />
         <Route path="post-item" element={<PostItem />} />
+        <Route path="sell-item" element={<SellItem />} />
         <Route path="my-items" element={<MyItems />} />
         <Route path="campaigns" element={<ClientCampaigns />} />
         <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
+        <Route path="campaigns/:campaignId/donate-item" element={<DonateItem />} />
         <Route path="profile" element={<Profile />} />
         <Route path="org/:orgId" element={<OrgDashboard />} />
         <Route path="org/:orgId/campaigns" element={<OrgCampaigns />} />

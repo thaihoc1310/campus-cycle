@@ -108,7 +108,11 @@ export default function ItemsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...form, price: parseFloat(form.price) || 0, category_id: form.category_id || null };
+      const payload = {
+        ...form,
+        price: form.type === 'donate' ? 0 : parseFloat(form.price) || 0,
+        category_id: form.category_id || null,
+      };
       if (editItem) {
         const { user_id, ...updatePayload } = payload;
         await api.put(`/items/${editItem.id}`, updatePayload);
@@ -196,7 +200,7 @@ export default function ItemsPage() {
       <Table columns={itemColumns} data={data.items} sortBy={itemSort.sortBy} sortOrder={itemSort.sortOrder} onSort={(key) => { itemSort.handleSort(key); setPage(1); }} renderRow={(item) => (
         <tr key={item.id}>
           <td><strong>{item.title}</strong></td>
-          <td>${Number(item.price).toLocaleString()}</td>
+          <td>{item.type === 'donate' ? '—' : `$${Number(item.price).toLocaleString()}`}</td>
           <td><span className="badge badge--active">{item.type}</span></td>
           <td><span className={`badge badge--${item.status}`}>{item.status}</span></td>
           <td>{item.category_name || '—'}</td>
@@ -242,8 +246,10 @@ export default function ItemsPage() {
         <form onSubmit={handleSaveItem} className="modal-form">
           <Input id="item-title" label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
-            <Input id="item-price" label="Price" type="number" step="0.01" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            <Input id="item-type" label="Type" type="select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            {form.type === 'sell' && (
+              <Input id="item-price" label="Price" type="number" step="0.01" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+            )}
+            <Input id="item-type" label="Type" type="select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, price: e.target.value === 'donate' ? '0' : form.price })}>
               <option value="sell">Sell</option>
               <option value="donate">Donate</option>
             </Input>

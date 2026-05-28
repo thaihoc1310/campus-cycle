@@ -3,13 +3,12 @@ export const money = (value) => `$${Number(value || 0).toLocaleString(undefined,
 export function itemFeePreview(item) {
   const price = Number(item?.price || 0);
   if (item?.type === 'donate') {
-    const buyerPlatformFee = price * 0.1;
     return {
-      itemPrice: price,
-      buyerPlatformFee,
+      itemPrice: 0,
+      buyerPlatformFee: 0,
       sellerPlatformFee: 0,
-      platformFee: buyerPlatformFee,
-      buyerTotal: buyerPlatformFee,
+      platformFee: 0,
+      buyerTotal: 0,
       sellerReceives: 0,
     };
   }
@@ -30,4 +29,3 @@ export function itemFeePreview(item) {
 export function imageUrl(path) {
   return path || '';
 }
-

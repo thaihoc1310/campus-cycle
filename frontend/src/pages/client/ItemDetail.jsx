@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, Package } from 'lucide-react';
+import { ArrowRight, ChevronRight, Package } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
+import ClientImageGallery from './ClientImageGallery.jsx';
 import { itemFeePreview, money } from './clientUtils.js';
 import './Client.css';
 
@@ -20,15 +21,16 @@ export default function ItemDetail() {
     api.get(`/client/items/${itemId}`).then((res) => {
       setItem(res.data);
       setPreview(itemFeePreview(res.data));
+      if (res.data.type !== 'sell') return;
+      api.get(`/client/items/${itemId}/purchase-preview`).then((previewRes) => setPreview({
+        itemPrice: Number(previewRes.data.item_price),
+        buyerPlatformFee: Number(previewRes.data.buyer_platform_fee),
+        sellerPlatformFee: Number(previewRes.data.seller_platform_fee),
+        platformFee: Number(previewRes.data.platform_fee),
+        buyerTotal: Number(previewRes.data.buyer_total),
+        sellerReceives: Number(previewRes.data.seller_receives),
+      })).catch(() => {});
     }).catch(() => {});
-    api.get(`/client/items/${itemId}/purchase-preview`).then((res) => setPreview({
-      itemPrice: Number(res.data.item_price),
-      buyerPlatformFee: Number(res.data.buyer_platform_fee),
-      sellerPlatformFee: Number(res.data.seller_platform_fee),
-      platformFee: Number(res.data.platform_fee),
-      buyerTotal: Number(res.data.buyer_total),
-      sellerReceives: Number(res.data.seller_receives),
-    })).catch(() => {});
   }, [itemId]);
 
   const handleBuy = async () => {
@@ -65,11 +67,9 @@ export default function ItemDetail() {
         <span className="client-breadcrumb__current">{item.title}</span>
       </nav>
 
-      <div className="client-detail">
+      <div className={`client-detail ${item.type === 'donate' ? 'client-detail--single' : ''}`}>
         <section>
-          <div className="client-detail__media">
-            {item.main_image ? <img src={item.main_image} alt={item.title} /> : <Package size={80} />}
-          </div>
+          <ClientImageGallery images={item.images || []} title={item.title} fallbackIcon={<Package size={80} />} />
           <div className="client-detail__content">
             <div className="client-card__meta">
               <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
@@ -78,28 +78,48 @@ export default function ItemDetail() {
             </div>
             <h1 className="client-detail__title">{item.title}</h1>
             <p>{item.description || 'No description provided.'}</p>
+            {item.type === 'donate' && (
+              <>
+                <div className="client-linked-info">
+                  <div>
+                    <span>Campaign</span>
+                    <strong>{item.campaign_name || 'Donation campaign'}</strong>
+                  </div>
+                  {item.campaign_id && (
+                    <Link className="client-linked-info__action" to={`/campaigns/${item.campaign_id}`} aria-label="Open campaign detail">
+                      <ArrowRight size={20} />
+                    </Link>
+                  )}
+                </div>
+                <div className="client-detail__actions">
+                  <Link className="btn btn--secondary btn--lg" to={item.campaign_id ? `/campaigns/${item.campaign_id}` : '/campaigns'}>View Campaign</Link>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
-        <aside className="client-side-panel">
-          <div>
-            <p className="text-muted">{item.type === 'donate' ? 'Donate item claim' : 'Marketplace purchase'}</p>
-            <h2>{item.type === 'donate' ? 'Platform fee only' : money(item.price)}</h2>
-          </div>
-          {preview && (
+        {item.type === 'sell' && (
+          <aside className="client-side-panel">
+            <div>
+              <p className="text-muted">Marketplace purchase</p>
+              <h2>{money(item.price)}</h2>
+            </div>
+            {preview && (
             <div className="client-breakdown">
               <div className="client-breakdown__row"><span>Item price</span><strong>{money(preview.itemPrice)}</strong></div>
               <div className="client-breakdown__row"><span>Buyer platform fee</span><strong>{money(preview.buyerPlatformFee)}</strong></div>
-              {item.type === 'sell' && <div className="client-breakdown__row"><span>Seller platform fee</span><strong>{money(preview.sellerPlatformFee)}</strong></div>}
+              <div className="client-breakdown__row"><span>Seller platform fee</span><strong>{money(preview.sellerPlatformFee)}</strong></div>
               <div className="client-breakdown__row"><span>Buyer total</span><strong>{money(preview.buyerTotal)}</strong></div>
             </div>
-          )}
-          <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
-            {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
-          </Button>
-          {user?.status !== 'active' && <p className="text-muted">Admin activation is required before buying items.</p>}
-          <Link className="btn btn--secondary btn--lg" to="/marketplace">Back to Marketplace</Link>
-        </aside>
+            )}
+            <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
+              {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
+            </Button>
+            {user?.status !== 'active' && <p className="text-muted">Admin activation is required before buying items.</p>}
+            <Link className="btn btn--secondary btn--lg" to="/marketplace">Back to Marketplace</Link>
+          </aside>
+        )}
       </div>
     </div>
   );

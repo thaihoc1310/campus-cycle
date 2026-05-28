@@ -162,6 +162,24 @@ def _campaign_item_to_response(campaign_item: CampaignItem, db: Session) -> OrgC
     )
 
 
+def _is_campaign_item_pending_for_org(campaign_item: CampaignItem) -> bool:
+    return campaign_item.status == "pending" and campaign_item.item.status == "approved"
+
+
+def _is_campaign_item_approved(campaign_item: CampaignItem) -> bool:
+    return campaign_item.status == "approved" and campaign_item.item.status == "approved"
+
+
+def _is_campaign_item_rejected(campaign_item: CampaignItem) -> bool:
+    return campaign_item.status == "rejected" or campaign_item.item.status == "rejected"
+
+
+def _sync_rejected_item_pair(campaign_item: CampaignItem) -> None:
+    campaign_item.item.status = "rejected"
+    for related_campaign_item in campaign_item.item.campaign_items:
+        related_campaign_item.status = "rejected"
+
+
 @router.get("/me", response_model=list[OrganizationResponse])
 def list_my_organizations(
     db: Session = Depends(get_db),
@@ -247,9 +265,27 @@ def get_org_dashboard(
     fundraising_campaigns = db.query(func.count(Campaign.id)).filter(Campaign.organization_id == org.id, Campaign.type == "fundraising").scalar() or 0
     donation_campaigns = db.query(func.count(Campaign.id)).filter(Campaign.organization_id == org.id, Campaign.type == "donation").scalar() or 0
 
-    pending_items = db.query(func.count(CampaignItem.id)).filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "pending").scalar() or 0
-    approved_items = db.query(func.count(CampaignItem.id)).filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "approved").scalar() or 0
-    rejected_items = db.query(func.count(CampaignItem.id)).filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "rejected").scalar() or 0
+    pending_items = (
+        db.query(func.count(CampaignItem.id))
+        .join(Item)
+        .filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "pending", Item.status == "approved")
+        .scalar()
+        or 0
+    )
+    approved_items = (
+        db.query(func.count(CampaignItem.id))
+        .join(Item)
+        .filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "approved", Item.status == "approved")
+        .scalar()
+        or 0
+    )
+    rejected_items = (
+        db.query(func.count(CampaignItem.id))
+        .join(Item)
+        .filter(CampaignItem.campaign_id.in_(campaign_ids), or_(CampaignItem.status == "rejected", Item.status == "rejected"))
+        .scalar()
+        or 0
+    )
 
     money_query = db.query(Transaction).filter(
         Transaction.campaign_id.in_(campaign_ids),
@@ -361,7 +397,9 @@ def get_org_campaign_detail(
     )
     campaign_items = (
         db.query(CampaignItem)
+        .join(Item)
         .filter(CampaignItem.campaign_id == campaign.id)
+        .filter(or_(CampaignItem.status != "pending", Item.status != "pending"))
         .order_by(CampaignItem.created_at.desc())
         .all()
     )
@@ -385,9 +423,9 @@ def get_org_campaign_detail(
         stats=OrgCampaignStats(
             money_donations=len(donations),
             total_money_donations=total_money_donations,
-            pending_items=sum(1 for item in campaign_items if item.status == "pending"),
-            approved_items=sum(1 for item in campaign_items if item.status == "approved"),
-            rejected_items=sum(1 for item in campaign_items if item.status == "rejected"),
+            pending_items=sum(1 for item in campaign_items if _is_campaign_item_pending_for_org(item)),
+            approved_items=sum(1 for item in campaign_items if _is_campaign_item_approved(item)),
+            rejected_items=sum(1 for item in campaign_items if _is_campaign_item_rejected(item)),
         ),
         money_donations=[
             OrgMoneyDonationResponse(
@@ -532,9 +570,18 @@ def update_campaign_item_status(
     if not campaign_item:
         raise HTTPException(status_code=404, detail="Campaign item not found")
 
-    campaign_item.status = data.status
+    if campaign_item.item.status == "rejected":
+        _sync_rejected_item_pair(campaign_item)
+        db.commit()
+        raise HTTPException(status_code=400, detail="Item was rejected by campus admin")
+
+    if data.status == "approved" and campaign_item.item.status != "approved":
+        raise HTTPException(status_code=400, detail="Campus admin approval is required before organization approval")
+
     if data.status == "rejected":
-        campaign_item.item.status = "rejected"
+        _sync_rejected_item_pair(campaign_item)
+    else:
+        campaign_item.status = data.status
     db.commit()
     db.refresh(campaign_item)
     return _campaign_item_to_response(campaign_item, db)

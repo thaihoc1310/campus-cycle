@@ -5,6 +5,7 @@ import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
+import ClientImageGallery from '../client/ClientImageGallery.jsx';
 import { money } from '../client/clientUtils.js';
 import './Org.css';
 
@@ -133,9 +134,7 @@ export default function OrgCampaignDetail() {
       </div>
 
       <section className="org-detail-hero">
-        <div className="org-detail-hero__media">
-          {campaign.main_image ? <img src={campaign.main_image} alt={campaign.title} /> : <Megaphone size={64} />}
-        </div>
+        <ClientImageGallery images={images} title={campaign.title} fallbackIcon={<Megaphone size={64} />} />
         <div className="org-detail-hero__content">
           <div className="org-card-meta">
             <span className={`badge badge--${campaign.status}`}>{campaign.status}</span>

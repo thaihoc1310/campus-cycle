@@ -1,20 +1,287 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, PlusCircle } from 'lucide-react';
+import { ArrowRight, ImagePlus, MoreVertical, Package, Pencil, PlusCircle, Star, Trash2, X } from 'lucide-react';
 import api from '../../api/client';
+import Button from '../../components/ui/Button.jsx';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
+import Input from '../../components/ui/Input.jsx';
+import Modal from '../../components/ui/Modal.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
+import { useToast } from '../../components/ui/Toast.jsx';
+import ClientImageGallery from './ClientImageGallery.jsx';
 import { money } from './clientUtils.js';
 import './Client.css';
 
-export default function MyItems() {
-  const [data, setData] = useState({ items: [], page: 1, pages: 1 });
-  const [page, setPage] = useState(1);
+function itemLabel(item) {
+  if (item.type === 'donate') return 'Donation item';
+  return money(item.price);
+}
+
+function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) {
+  const canEdit = item.status === 'pending';
+
+  return (
+    <article
+      className="client-card client-item-card"
+      role="button"
+      tabIndex={0}
+      onClick={onView}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onView();
+        }
+      }}
+    >
+      <div className="client-card__media">
+        {item.main_image ? <img src={item.main_image} alt={item.title} /> : <Package size={54} />}
+        <div className="client-item-card__actions">
+          <button type="button" className="client-item-card__menu-button" onClick={onToggleMenu} aria-label={`Open actions for ${item.title}`}>
+            <MoreVertical size={18} />
+          </button>
+          {menuOpen && (
+            <div className="client-item-card__menu" onClick={(event) => event.stopPropagation()}>
+              {canEdit && (
+                <button type="button" onClick={onEdit}>
+                  <Pencil size={16} />
+                  <span>Edit</span>
+                </button>
+              )}
+              <button type="button" className="client-item-card__menu-danger" onClick={onDelete}>
+                <Trash2 size={16} />
+                <span>Delete</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="client-card__body">
+        <div className="client-card__meta">
+          <span className={`badge badge--${item.status}`}>{item.status}</span>
+          <span>{item.type}</span>
+          {item.campaign_name && <span>{item.campaign_name}</span>}
+        </div>
+        <h2 className="client-card__title">{item.title}</h2>
+        <div className="client-card__footer">
+          <span className={item.type === 'donate' ? 'text-muted' : 'client-price'}>{itemLabel(item)}</span>
+          <span className="text-muted">{item.status === 'approved' ? 'public' : 'not public'}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ViewItemModal({ item, onClose }) {
+  if (!item) return null;
+
+  return (
+    <Modal isOpen={!!item} onClose={onClose} title={item.title} size="lg">
+      <div className="client-my-item-view">
+        <ClientImageGallery images={item.images || []} title={item.title} fallbackIcon={<Package size={72} />} variant="strip" />
+        <div className="client-my-item-view__body">
+          <div className="client-card__meta">
+            <span className={`badge badge--${item.status}`}>{item.status}</span>
+            <span>{item.type}</span>
+            <span>{item.category_name || 'Uncategorized'}</span>
+          </div>
+          <h2>{item.title}</h2>
+          <p>{item.description || 'No description provided.'}</p>
+          {item.type === 'donate' ? (
+            <div className="client-linked-info">
+              <div>
+                <span>Campaign</span>
+                <strong>{item.campaign_name || 'Donation campaign'}</strong>
+              </div>
+              {item.campaign_id && (
+                <Link className="client-linked-info__action" to={`/campaigns/${item.campaign_id}`} onClick={onClose} aria-label="Open campaign detail">
+                  <ArrowRight size={20} />
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="client-item-facts">
+              <div>
+                <strong>{money(item.price)}</strong>
+                <span>Listing value</span>
+              </div>
+              <div>
+                <strong>{item.status === 'approved' ? 'Public' : 'Not public'}</strong>
+                <span>Visibility</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function EditItemModal({ item, categories, onClose, onSaved }) {
+  const toast = useToast();
+  const fileRef = useRef(null);
+  const [form, setForm] = useState({ title: '', description: '', price: '0', category_id: '' });
+  const [images, setImages] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    api.get('/client/items/my', { params: { page, page_size: 12 } })
+    if (!item) return;
+    setForm({
+      title: item.title || '',
+      description: item.description || '',
+      price: String(item.price || 0),
+      category_id: item.category_id || '',
+    });
+    setImages(item.images || []);
+  }, [item]);
+
+  if (!item) return null;
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const res = await api.put(`/client/items/${item.id}`, {
+        title: form.title,
+        description: form.description,
+        price: item.type === 'sell' ? Number(form.price || 0) : 0,
+        category_id: form.category_id || null,
+      });
+      toast('Item updated.', 'success');
+      onSaved(res.data);
+      onClose();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not update item', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadImages = async (files) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const data = new FormData();
+      Array.from(files).forEach((file) => data.append('files', file));
+      const res = await api.post(`/client/items/${item.id}/images`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImages((current) => [...current, ...res.data]);
+      toast('Images uploaded.', 'success');
+      onSaved();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not upload images', 'error');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const setMainImage = async (imageId) => {
+    try {
+      await api.put(`/client/items/images/${imageId}/main`);
+      setImages((current) => current.map((image) => ({ ...image, is_main: image.id === imageId })));
+      toast('Main image updated.', 'success');
+      onSaved();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not set main image', 'error');
+    }
+  };
+
+  const deleteImage = async (imageId) => {
+    try {
+      await api.delete(`/client/items/images/${imageId}`);
+      setImages((current) => current.filter((image) => image.id !== imageId));
+      toast('Image deleted.', 'success');
+      onSaved();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not delete image', 'error');
+    }
+  };
+
+  return (
+    <Modal isOpen={!!item} onClose={onClose} title={`Edit ${item.title}`} size="lg">
+      <form className="client-edit-item" onSubmit={handleSave}>
+        <div className="client-form-grid">
+          <Input id="my-item-title" label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          <Input id="my-item-category" label="Category" type="select" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
+            <option value="">No category</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </Input>
+        </div>
+        {item.type === 'sell' && (
+          <Input id="my-item-price" label="Seller Price" type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+        )}
+        <Input id="my-item-description" label="Description" type="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+
+        <section className="client-edit-images">
+          <div className="client-edit-images__header">
+            <div>
+              <h3>Images</h3>
+              <p className="text-muted">Update photos while the item is pending review.</p>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || images.length >= 6}>
+              <ImagePlus size={16} />
+              {uploading ? 'Uploading...' : 'Add Images'}
+            </Button>
+            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(event) => uploadImages(event.target.files)} />
+          </div>
+          {images.length ? (
+            <div className="client-edit-images__grid">
+              {images.map((image) => (
+                <div key={image.id} className="client-edit-image">
+                  <img src={image.image_path} alt="" />
+                  {image.is_main && <span>Main</span>}
+                  <div className="client-edit-image__actions">
+                    <button type="button" title="Set main" onClick={() => setMainImage(image.id)} disabled={image.is_main}><Star size={15} /></button>
+                    <button type="button" title="Delete image" onClick={() => deleteImage(image.id)}><X size={15} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="client-empty" style={{ padding: 'var(--space-6)' }}>
+              <span className="client-empty__icon"><Package size={24} /></span>
+              <span className="client-empty__copy">No images yet.</span>
+            </div>
+          )}
+        </section>
+
+        <div className="modal__actions">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export default function MyItems() {
+  const toast = useToast();
+  const [data, setData] = useState({ items: [], page: 1, pages: 1 });
+  const [categories, setCategories] = useState([]);
+  const [page, setPage] = useState(1);
+  const [openMenuId, setOpenMenuId] = useState('');
+  const [viewItem, setViewItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchItems = useCallback(() => {
+    api.get('/client/items/my', { params: { page, page_size: 60 } })
       .then((res) => setData(res.data))
       .catch(() => {});
   }, [page]);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { api.get('/client/categories').then((res) => setCategories(res.data)).catch(() => {}); }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId('');
+    document.addEventListener('click', closeMenu);
+    return () => document.removeEventListener('click', closeMenu);
+  }, []);
 
   const statusCounts = useMemo(() => {
     const counts = {};
@@ -24,14 +291,76 @@ export default function MyItems() {
     return counts;
   }, [data.items]);
 
+  const sellItems = useMemo(() => data.items.filter((item) => item.type === 'sell'), [data.items]);
+  const donationItems = useMemo(() => data.items.filter((item) => item.type === 'donate'), [data.items]);
+
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/client/items/${deleteItem.id}`);
+      toast('Item deleted.', 'success');
+      setDeleteItem(null);
+      fetchItems();
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not delete item', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const renderSection = (title, copy, items) => (
+    <section className="client-section">
+      <div className="client-section__header">
+        <div>
+          <h2 className="client-section__title">{title}</h2>
+          <p className="client-section__copy">{copy}</p>
+        </div>
+      </div>
+      {items.length ? (
+        <div className="client-grid">
+          {items.map((item) => (
+            <MyItemCard
+              key={item.id}
+              item={item}
+              menuOpen={openMenuId === item.id}
+              onToggleMenu={(event) => {
+                event.stopPropagation();
+                setOpenMenuId((current) => current === item.id ? '' : item.id);
+              }}
+              onView={() => {
+                setOpenMenuId('');
+                setViewItem(item);
+              }}
+              onEdit={() => {
+                setOpenMenuId('');
+                setEditItem(item);
+              }}
+              onDelete={() => {
+                setOpenMenuId('');
+                setDeleteItem(item);
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="client-empty">
+          <span className="client-empty__icon"><Package size={28} /></span>
+          <span className="client-empty__title">No {title.toLowerCase()} yet</span>
+          <span className="client-empty__copy">Items you submit in this category will appear here.</span>
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <div className="client-page">
       <div className="client-section__header">
         <div>
           <h1 className="client-section__title">My Items</h1>
-          <p className="client-section__copy">Track campus review status and public visibility.</p>
+          <p className="client-section__copy">Track campus review status and manage your submissions.</p>
         </div>
-        <Link className="btn btn--primary btn--md" to="/post-item"><PlusCircle size={16} /> Post Item</Link>
+        <Link className="btn btn--primary btn--md" to="/sell-item"><PlusCircle size={16} /> Sell Item</Link>
       </div>
 
       {data.items.length > 0 && Object.keys(statusCounts).length > 0 && (
@@ -46,35 +375,30 @@ export default function MyItems() {
       )}
 
       {data.items.length ? (
-        <div className="client-grid">
-          {data.items.map((item) => (
-            <Link key={item.id} to={`/items/${item.id}`} className="client-card">
-              <div className="client-card__media">
-                {item.main_image ? <img src={item.main_image} alt={item.title} /> : <Package size={54} />}
-              </div>
-              <div className="client-card__body">
-                <div className="client-card__meta">
-                  <span className={`badge badge--${item.status}`}>{item.status}</span>
-                  <span>{item.type}</span>
-                </div>
-                <h2 className="client-card__title">{item.title}</h2>
-                <div className="client-card__footer">
-                  <span className="client-price">{money(item.price)}</span>
-                  <span className="text-muted">{item.status === 'approved' ? 'public' : 'not public'}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <>
+          {renderSection('Sell Items', 'Listings submitted for marketplace review.', sellItems)}
+          {renderSection('Donation Items', 'Items submitted to donation campaigns.', donationItems)}
+          <Pagination page={data.page} pages={data.pages} onPageChange={setPage} />
+        </>
       ) : (
         <div className="client-empty">
           <span className="client-empty__icon"><Package size={28} /></span>
           <span className="client-empty__title">No items posted yet</span>
-          <span className="client-empty__copy">List your first item for campus reuse. All items go through admin review before going public.</span>
-          <Link className="btn btn--primary btn--md" to="/post-item"><PlusCircle size={16} /> Post Your First Item</Link>
+          <span className="client-empty__copy">List your first item for campus reuse. Donation items are created from donation campaigns.</span>
+          <Link className="btn btn--primary btn--md" to="/sell-item"><PlusCircle size={16} /> Sell Your First Item</Link>
         </div>
       )}
-      <Pagination page={data.page} pages={data.pages} onPageChange={setPage} />
+
+      <ViewItemModal item={viewItem} onClose={() => setViewItem(null)} />
+      <EditItemModal item={editItem} categories={categories} onClose={() => setEditItem(null)} onSaved={fetchItems} />
+      <ConfirmDialog
+        isOpen={!!deleteItem}
+        onClose={() => setDeleteItem(null)}
+        onConfirm={handleDelete}
+        title="Delete Item"
+        message={`Delete "${deleteItem?.title}"? This cannot be undone.`}
+        loading={deleting}
+      />
     </div>
   );
 }

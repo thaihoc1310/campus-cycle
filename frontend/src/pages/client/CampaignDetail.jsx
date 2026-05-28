@@ -1,13 +1,46 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, Megaphone } from 'lucide-react';
+import { ChevronRight, Info, Megaphone, Package, Search } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Input from '../../components/ui/Input.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import Pagination from '../../components/ui/Pagination.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
+import ClientImageGallery from './ClientImageGallery.jsx';
 import { money } from './clientUtils.js';
 import './Client.css';
+
+function DonatedItemModal({ item, onClose }) {
+  return (
+    <Modal isOpen={!!item} onClose={onClose} title={item?.title || 'Donated Item'} size="lg">
+      {item && (
+        <div className="client-donation-modal">
+          <ClientImageGallery images={item.images || []} title={item.title} fallbackIcon={<Package size={72} />} variant="strip" />
+          <div className="client-donation-modal__body">
+            <div className="client-card__meta">
+              <span className="badge badge--approved">donated item</span>
+              <span>{item.category_name || 'Uncategorized'}</span>
+            </div>
+            <h2>{item.title}</h2>
+            <p>{item.description || 'No description provided.'}</p>
+            <div className="client-donation-facts">
+              <div>
+                <strong>{item.owner_name || 'Campus member'}</strong>
+                <span>donor</span>
+              </div>
+              <div>
+                <strong>{item.campaign_name || 'Donation campaign'}</strong>
+                <span>campaign</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 export default function CampaignDetail() {
   const { campaignId } = useParams();
@@ -15,23 +48,25 @@ export default function CampaignDetail() {
   const { user } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [amount, setAmount] = useState('10');
-  const [myItems, setMyItems] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('info');
+  const [donatedData, setDonatedData] = useState({ items: [], page: 1, pages: 1, total: 0 });
+  const [donatedPage, setDonatedPage] = useState(1);
+  const [donatedSearch, setDonatedSearch] = useState('');
+  const [selectedDonation, setSelectedDonation] = useState(null);
 
   useEffect(() => {
     api.get(`/client/campaigns/${campaignId}`).then((res) => setCampaign(res.data)).catch(() => {});
   }, [campaignId]);
 
   useEffect(() => {
-    api.get('/client/items/my', { params: { page_size: 60 } })
-      .then((res) => {
-        const items = (res.data.items || []).filter((item) => item.type === 'donate' && !['rejected', 'sold', 'donated'].includes(item.status));
-        setMyItems(items);
-        setSelectedItemId(items[0]?.id || '');
-      })
-      .catch(() => {});
-  }, []);
+    if (campaign?.type !== 'donation' || activeTab !== 'items') return;
+    api.get(`/client/campaigns/${campaignId}/donated-items`, {
+      params: { page: donatedPage, page_size: 9, search: donatedSearch },
+    })
+      .then((res) => setDonatedData(res.data))
+      .catch(() => setDonatedData({ items: [], page: 1, pages: 1, total: 0 }));
+  }, [activeTab, campaign?.type, campaignId, donatedPage, donatedSearch]);
 
   const donateMoney = async () => {
     setSaving(true);
@@ -40,18 +75,6 @@ export default function CampaignDetail() {
       toast('Money donation request created. Billing system will handle payment.', 'success');
     } catch (err) {
       toast(err.response?.data?.detail || 'Could not create donation request', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const submitItem = async () => {
-    setSaving(true);
-    try {
-      await api.post(`/client/campaigns/${campaignId}/items`, { item_id: selectedItemId });
-      toast('Item submitted to campaign review.', 'success');
-    } catch (err) {
-      toast(err.response?.data?.detail || 'Could not submit item', 'error');
     } finally {
       setSaving(false);
     }
@@ -69,6 +92,8 @@ export default function CampaignDetail() {
     );
   }
 
+  const showDonatedItems = campaign.type === 'donation' && activeTab === 'items';
+
   return (
     <div className="client-page">
       <nav className="client-breadcrumb">
@@ -79,62 +104,121 @@ export default function CampaignDetail() {
         <span className="client-breadcrumb__current">{campaign.title}</span>
       </nav>
 
-      <div className="client-detail">
-        <section>
-          <div className="client-detail__media">
-            {campaign.main_image ? <img src={campaign.main_image} alt={campaign.title} /> : <Megaphone size={80} />}
-          </div>
-          <div className="client-detail__content">
-            <div className="client-card__meta">
-              <span className="badge badge--approved">{campaign.type}</span>
-              <span>{campaign.organization_name || 'Campus'}</span>
-            </div>
-            <h1 className="client-detail__title">{campaign.title}</h1>
-            <p>{campaign.description || 'No description provided.'}</p>
-          </div>
-        </section>
+      {campaign.type === 'donation' && (
+        <div className="client-campaign-tabs">
+          <button type="button" className={`client-campaign-tabs__item ${activeTab === 'info' ? 'client-campaign-tabs__item--active' : ''}`} onClick={() => setActiveTab('info')}>
+            <Info size={16} />
+            Campaign Info
+          </button>
+          <button type="button" className={`client-campaign-tabs__item ${activeTab === 'items' ? 'client-campaign-tabs__item--active' : ''}`} onClick={() => setActiveTab('items')}>
+            <Package size={16} />
+            Donated Items
+          </button>
+        </div>
+      )}
 
-        <aside className="client-side-panel">
-          {campaign.type === 'fundraising' ? (
-            <>
-              <div>
-                <p className="text-muted">Fundraising donation</p>
-                <h2>{money(amount)}</h2>
+      {showDonatedItems ? (
+        <section className="client-donations-panel">
+          <div className="client-section__header">
+            <div>
+              <h1 className="client-section__title">Donated Items</h1>
+              <p className="client-section__copy">Approved donated items submitted to {campaign.title}.</p>
+            </div>
+            <Link className="btn btn--primary btn--md" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
+          </div>
+
+          <div className="client-toolbar client-toolbar--compact">
+            <Input
+              id="donated-item-search"
+              placeholder="Search donated items..."
+              value={donatedSearch}
+              onChange={(event) => {
+                setDonatedSearch(event.target.value);
+                setDonatedPage(1);
+              }}
+            />
+            {donatedData.items.length > 0 && (
+              <div className="client-toolbar__info">
+                <span>{donatedData.total || donatedData.items.length} item{(donatedData.total || donatedData.items.length) !== 1 ? 's' : ''} found</span>
+                <span>Page {donatedData.page} of {donatedData.pages}</span>
               </div>
-              <Input id="donate-amount" label="Amount" type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <Button variant="primary" size="lg" onClick={donateMoney} disabled={saving || user?.status !== 'active'}>
-                {user?.status !== 'active' ? 'Awaiting Activation' : saving ? 'Creating...' : 'Donate Money'}
-              </Button>
-              {user?.status !== 'active' && <p className="text-muted">Admin activation is required before donating money.</p>}
-            </>
+            )}
+          </div>
+
+          {donatedData.items.length ? (
+            <div className="client-donation-grid">
+              {donatedData.items.map((item) => (
+                <button key={item.id} type="button" className="client-donation-card" onClick={() => setSelectedDonation(item)}>
+                  <span className="client-donation-card__media">
+                    {item.main_image ? <img src={item.main_image} alt={item.title} /> : <Package size={40} />}
+                  </span>
+                  <span className="client-donation-card__body">
+                    <span className="client-card__meta">
+                      <span className="badge badge--approved">donated</span>
+                      <span>{item.category_name || 'Uncategorized'}</span>
+                    </span>
+                    <strong>{item.title}</strong>
+                    <span>{item.owner_name || 'Campus member'}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           ) : (
-            <>
-              <div>
-                <p className="text-muted">Item donation</p>
-                <h2>Submit a donate item</h2>
+            <div className="client-empty">
+              <span className="client-empty__icon"><Search size={28} /></span>
+              <span className="client-empty__title">No donated items found</span>
+              <span className="client-empty__copy">Approved donated items for this campaign will appear here.</span>
+            </div>
+          )}
+
+          <Pagination page={donatedData.page} pages={donatedData.pages} onPageChange={setDonatedPage} />
+          <DonatedItemModal item={selectedDonation} onClose={() => setSelectedDonation(null)} />
+        </section>
+      ) : (
+        <div className="client-detail">
+          <section>
+            <ClientImageGallery images={campaign.images || []} title={campaign.title} fallbackIcon={<Megaphone size={80} />} />
+            <div className="client-detail__content">
+              <div className="client-card__meta">
+                <span className="badge badge--approved">{campaign.type}</span>
+                <span>{campaign.organization_name || 'Campus'}</span>
               </div>
-              {myItems.length ? (
-                <>
-                  <Input id="campaign-item" label="Your Donate Item" type="select" value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
-                    {myItems.map((item) => <option key={item.id} value={item.id}>{item.title} ({item.status})</option>)}
-                  </Input>
-                  <Button variant="primary" size="lg" onClick={submitItem} disabled={saving || !selectedItemId || user?.status !== 'active'}>
-                    {user?.status !== 'active' ? 'Awaiting Activation' : saving ? 'Submitting...' : 'Submit Item'}
-                  </Button>
-                  {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
-                </>
-              ) : (
+              <h1 className="client-detail__title">{campaign.title}</h1>
+              <p>{campaign.description || 'No description provided.'}</p>
+            </div>
+          </section>
+
+          <aside className="client-side-panel">
+            {campaign.type === 'fundraising' ? (
+              <>
+                <div>
+                  <p className="text-muted">Fundraising donation</p>
+                  <h2>{money(amount)}</h2>
+                </div>
+                <Input id="donate-amount" label="Amount" type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <Button variant="primary" size="lg" onClick={donateMoney} disabled={saving || user?.status !== 'active'}>
+                  {user?.status !== 'active' ? 'Awaiting Activation' : saving ? 'Creating...' : 'Donate Money'}
+                </Button>
+                {user?.status !== 'active' && <p className="text-muted">Admin activation is required before donating money.</p>}
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-muted">Item donation</p>
+                  <h2>Create a donate item</h2>
+                </div>
                 <div className="client-empty" style={{ border: 'none', padding: 'var(--space-6)' }}>
                   <span className="client-empty__icon"><Megaphone size={24} /></span>
-                  <span className="client-empty__copy">Create a donate item first, then submit it to this campaign.</span>
+                  <span className="client-empty__copy">Create a donate item for this campaign and it will be submitted to campus review first.</span>
                 </div>
-              )}
-              <Link className="btn btn--secondary btn--lg" to="/post-item">Post Donate Item</Link>
-            </>
-          )}
-          <Link className="btn btn--secondary btn--lg" to="/campaigns">Back to Campaigns</Link>
-        </aside>
-      </div>
+                <Link className="btn btn--primary btn--lg" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
+                {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
+              </>
+            )}
+            <Link className="btn btn--secondary btn--lg" to="/campaigns">Back to Campaigns</Link>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

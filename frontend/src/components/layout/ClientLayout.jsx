@@ -9,7 +9,6 @@ import {
   Megaphone,
   Package,
   Recycle,
-  Sparkles,
   User,
   WalletCards,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import './ClientLayout.css';
 
 const accountNavItems = [
-  { to: '/', label: 'Explore', icon: Sparkles, end: true },
   { to: '/marketplace', label: 'Marketplace', icon: Package },
   { to: '/campaigns', label: 'Campaigns', icon: WalletCards },
 ];

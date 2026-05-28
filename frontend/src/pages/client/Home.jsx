@@ -1,132 +1,275 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Megaphone, Package, PlusCircle, Recycle, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package, Share2 } from 'lucide-react';
 import api from '../../api/client';
-import Button from '../../components/ui/Button.jsx';
 import { money } from './clientUtils.js';
 import './Client.css';
 
-function MiniItem({ item }) {
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function FeedImageCarousel({ images, title, fallback }) {
+  const [current, setCurrent] = useState(0);
+  const trackRef = useRef(null);
+  const list = images?.length ? images : [];
+
+  if (!list.length) {
+    return (
+      <div className="feed-card__media feed-card__media--empty">
+        {fallback}
+      </div>
+    );
+  }
+
+  if (list.length === 1) {
+    return (
+      <div className="feed-card__media">
+        <img src={list[0].image_path || list[0]} alt={title} />
+      </div>
+    );
+  }
+
+  const go = (dir) => {
+    const next = dir === 'next'
+      ? Math.min(current + 1, list.length - 1)
+      : Math.max(current - 1, 0);
+    setCurrent(next);
+  };
+
   return (
-    <Link to={`/items/${item.id}`} className="client-card">
-      <div className="client-card__media">
-        {item.main_image ? <img src={item.main_image} alt={item.title} /> : <Package size={52} />}
+    <div className="feed-card__media feed-card__media--carousel">
+      <div
+        className="feed-card__carousel-track"
+        ref={trackRef}
+        style={{ transform: `translateX(-${current * 100}%)` }}
+      >
+        {list.map((img, i) => (
+          <img key={i} src={img.image_path || img} alt={`${title} ${i + 1}`} />
+        ))}
       </div>
-      <div className="client-card__body">
-        <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
-        <h3 className="client-card__title">{item.title}</h3>
-        <div className="client-card__footer">
-          <span className="client-price">{item.type === 'donate' ? 'Fee only' : money(item.price)}</span>
-          <span className="text-muted">View →</span>
-        </div>
+      {current > 0 && (
+        <button className="feed-card__carousel-btn feed-card__carousel-btn--prev" onClick={(e) => { e.preventDefault(); go('prev'); }}>
+          <ChevronLeft size={20} />
+        </button>
+      )}
+      {current < list.length - 1 && (
+        <button className="feed-card__carousel-btn feed-card__carousel-btn--next" onClick={(e) => { e.preventDefault(); go('next'); }}>
+          <ChevronRight size={20} />
+        </button>
+      )}
+      <div className="feed-card__carousel-dots">
+        {list.map((_, i) => (
+          <span key={i} className={`feed-card__carousel-dot ${i === current ? 'feed-card__carousel-dot--active' : ''}`} />
+        ))}
       </div>
-    </Link>
+    </div>
   );
 }
 
-function MiniCampaign({ campaign }) {
+function FeedItemCard({ item }) {
   return (
-    <Link to={`/campaigns/${campaign.id}`} className="client-card">
-      <div className="client-card__media">
-        {campaign.main_image ? <img src={campaign.main_image} alt={campaign.title} /> : <Megaphone size={52} />}
+    <article className="feed-card">
+      <div className="feed-card__header">
+        <div className="feed-card__avatar feed-card__avatar--item">
+          <Package size={18} />
+        </div>
+        <div className="feed-card__header-info">
+          <span className="feed-card__author">{item.owner_name || 'Campus Member'}</span>
+          <span className="feed-card__time">{timeAgo(item.created_at)} · <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span></span>
+        </div>
+        {item.type === 'sell' && (
+          <span className="feed-card__price">{money(item.price)}</span>
+        )}
+        {item.type === 'donate' && (
+          <span className="feed-card__tag feed-card__tag--donate">Free</span>
+        )}
       </div>
-      <div className="client-card__body">
-        <span className="badge badge--approved">{campaign.type}</span>
-        <h3 className="client-card__title">{campaign.title}</h3>
-        <div className="client-card__footer">
-          <span className="text-muted">{campaign.organization_name || 'Campus'}</span>
-          <span className="text-muted">Open →</span>
+
+      <Link to={`/items/${item.id}`} className="feed-card__link">
+        <FeedImageCarousel images={item.images || []} title={item.title} fallback={<Package size={56} />} />
+      </Link>
+
+      <div className="feed-card__body">
+        <Link to={`/items/${item.id}`} className="feed-card__title-link">
+          <h3 className="feed-card__title">{item.title}</h3>
+        </Link>
+        {item.description && (
+          <p className="feed-card__desc">{item.description}</p>
+        )}
+        <div className="feed-card__meta-row">
+          {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
         </div>
       </div>
-    </Link>
+
+      <div className="feed-card__actions feed-card__actions--split">
+        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/items/${item.id}`); }}>
+          <Share2 size={18} />
+        </button>
+        <Link to={`/items/${item.id}`} className="feed-card__action feed-card__action--primary">
+          <span>{item.type === 'sell' ? 'Buy Now' : 'View Item'}</span>
+          <ArrowRight size={18} />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function FeedCampaignCard({ campaign }) {
+  return (
+    <article className="feed-card feed-card--campaign">
+      <div className="feed-card__header">
+        <div className="feed-card__avatar feed-card__avatar--campaign">
+          <Megaphone size={18} />
+        </div>
+        <div className="feed-card__header-info">
+          <span className="feed-card__author">{campaign.organization_name || 'Campus Organization'}</span>
+          <span className="feed-card__time">{timeAgo(campaign.created_at)} · <span className="badge badge--approved">{campaign.type}</span></span>
+        </div>
+      </div>
+
+      <Link to={`/campaigns/${campaign.id}`} className="feed-card__link">
+        <FeedImageCarousel images={campaign.images || []} title={campaign.title} fallback={<Megaphone size={56} />} />
+      </Link>
+
+      <div className="feed-card__body">
+        <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
+          <h3 className="feed-card__title">{campaign.title}</h3>
+        </Link>
+        {campaign.description && (
+          <p className="feed-card__desc">{campaign.description}</p>
+        )}
+      </div>
+
+      <div className="feed-card__actions feed-card__actions--split">
+        <button className="feed-card__action feed-card__action--share" onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(window.location.origin + `/campaigns/${campaign.id}`); }}>
+          <Share2 size={18} />
+        </button>
+        <Link to={`/campaigns/${campaign.id}`} className="feed-card__action feed-card__action--primary">
+          <span>{campaign.type === 'fundraising' ? 'Donate Now' : 'View Campaign'}</span>
+          <ArrowRight size={18} />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div className="feed-card feed-card--skeleton">
+      <div className="feed-card__header">
+        <div className="client-skeleton__block" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+        <div style={{ flex: 1 }}>
+          <div className="client-skeleton__block" style={{ height: 14, width: '40%', marginBottom: 6 }} />
+          <div className="client-skeleton__block" style={{ height: 12, width: '25%' }} />
+        </div>
+      </div>
+      <div className="client-skeleton__block" style={{ height: 320, borderRadius: 0 }} />
+      <div style={{ padding: '16px 20px' }}>
+        <div className="client-skeleton__block" style={{ height: 18, width: '65%', marginBottom: 8 }} />
+        <div className="client-skeleton__block" style={{ height: 14, width: '90%' }} />
+      </div>
+    </div>
   );
 }
 
 export default function Home() {
-  const [items, setItems] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
+  const [feed, setFeed] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const loaderRef = useRef(null);
 
-  useEffect(() => {
-    api.get('/client/items', { params: { page_size: 4 } }).then((res) => setItems(res.data.items || [])).catch(() => {});
-    api.get('/client/campaigns', { params: { page_size: 4 } }).then((res) => setCampaigns(res.data.items || [])).catch(() => {});
+  const fetchFeed = useCallback(async (pageNum) => {
+    try {
+      setLoading(true);
+      const res = await api.get('/client/feed', { params: { page: pageNum, page_size: 15 } });
+      const data = res.data;
+      const newItems = data.items || [];
+      if (pageNum === 1) {
+        setFeed(newItems);
+      } else {
+        setFeed((prev) => [...prev, ...newItems]);
+      }
+      setHasMore(newItems.length > 0 && pageNum < (data.pages || 1));
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchFeed(page);
+  }, [page, fetchFeed]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!loaderRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage((p) => p + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading]);
+
   return (
-    <div className="client-page">
-      <section className="client-hero">
-        <div className="client-hero__content">
-          <p className="client-hero__eyebrow">Trusted campus reuse</p>
-          <h1 className="client-hero__title">Buy less new. Move more value around campus.</h1>
-          <p className="client-hero__copy">
-            Browse approved items, buy donated listings with a small platform fee, or submit items to active donation campaigns.
-          </p>
-          <div className="client-hero__actions">
-            <Link className="btn btn--secondary btn--lg" to="/marketplace"><Package size={18} /> Browse Items</Link>
-            <Link className="btn btn--primary btn--lg" to="/post-item"><PlusCircle size={18} /> Post Item</Link>
-          </div>
-        </div>
-        <div className="client-hero__panel">
-          <div className="client-stat-block">
-            <span className="client-stat-block__icon client-stat-block__icon--blue"><Package size={22} /></span>
-            <div>
-              <strong>{items.length}</strong>
-              <span>approved item previews</span>
-            </div>
-          </div>
-          <div className="client-stat-block">
-            <span className="client-stat-block__icon client-stat-block__icon--green"><Megaphone size={22} /></span>
-            <div>
-              <strong>{campaigns.length}</strong>
-              <span>active campaign previews</span>
-            </div>
-          </div>
-          <div className="client-stat-block">
-            <span className="client-stat-block__icon client-stat-block__icon--amber"><ShieldCheck size={22} /></span>
-            <div>
-              <strong>Verified</strong>
-              <span>Every listing is reviewed before it appears publicly.</span>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="feed-page">
+      <div className="feed-container">
+        <div className="feed-list">
+          {feed.map((entry, index) => {
+            if (entry.feed_type === 'item' && entry.item) {
+              return <FeedItemCard key={`item-${entry.item.id}-${index}`} item={entry.item} />;
+            }
+            if (entry.feed_type === 'campaign' && entry.campaign) {
+              return <FeedCampaignCard key={`campaign-${entry.campaign.id}-${index}`} campaign={entry.campaign} />;
+            }
+            return null;
+          })}
 
-      <section className="client-section">
-        <div className="client-section__header">
-          <div>
-            <h2 className="client-section__title">Fresh Items</h2>
-            <p className="client-section__copy">Approved listings ready for campus handoff.</p>
-          </div>
-          <Link className="btn btn--secondary btn--md" to="/marketplace">View all <ArrowRight size={16} /></Link>
-        </div>
-        {items.length ? (
-          <div className="client-grid">{items.map((item) => <MiniItem key={item.id} item={item} />)}</div>
-        ) : (
-          <div className="client-empty">
-            <span className="client-empty__icon"><Package size={28} /></span>
-            <span className="client-empty__title">No items yet</span>
-            <span className="client-empty__copy">Approved items will appear here. Check back soon!</span>
-          </div>
-        )}
-      </section>
+          {loading && (
+            <>
+              <FeedSkeleton />
+              <FeedSkeleton />
+            </>
+          )}
 
-      <section className="client-section">
-        <div className="client-section__header">
-          <div>
-            <h2 className="client-section__title">Campaigns</h2>
-            <p className="client-section__copy">Fundraising and item donation drives approved by campus admins.</p>
-          </div>
-          <Link className="btn btn--secondary btn--md" to="/campaigns">View all <ArrowRight size={16} /></Link>
+          {!loading && feed.length === 0 && (
+            <div className="feed-empty">
+              <div className="feed-empty__icon">
+                <Package size={32} />
+              </div>
+              <h3 className="feed-empty__title">No activity yet</h3>
+              <p className="feed-empty__copy">
+                Approved items and campaigns will show up here. Check back soon or list your own item!
+              </p>
+              <Link className="btn btn--primary btn--lg" to="/sell-item">Sell an Item</Link>
+            </div>
+          )}
+
+          {hasMore && <div ref={loaderRef} className="feed-loader" />}
+
+          {!hasMore && feed.length > 0 && (
+            <div className="feed-end">
+              <span>You're all caught up! 🎉</span>
+            </div>
+          )}
         </div>
-        {campaigns.length ? (
-          <div className="client-grid">{campaigns.map((campaign) => <MiniCampaign key={campaign.id} campaign={campaign} />)}</div>
-        ) : (
-          <div className="client-empty">
-            <span className="client-empty__icon"><Megaphone size={28} /></span>
-            <span className="client-empty__title">No campaigns yet</span>
-            <span className="client-empty__copy">Approved campaigns will appear here once available.</span>
-          </div>
-        )}
-      </section>
+      </div>
     </div>
   );
 }

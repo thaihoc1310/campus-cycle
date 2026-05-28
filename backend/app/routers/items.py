@@ -1,6 +1,7 @@
 import math
 import os
 import uuid as uuid_lib
+from decimal import Decimal
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
@@ -29,6 +30,18 @@ def _item_to_response(item: Item) -> ItemResponse:
         category_name=item.category.name if item.category else None,
         created_at=item.created_at, updated_at=item.updated_at,
     )
+
+
+def _sync_rejected_campaign_items(item: Item) -> None:
+    if item.status != "rejected":
+        return
+    for campaign_item in item.campaign_items:
+        campaign_item.status = "rejected"
+
+
+def _normalize_item_price(item: Item) -> None:
+    if item.type == "donate":
+        item.price = Decimal("0.00")
 
 
 @router.get("", response_model=PaginatedResponse[ItemResponse])
@@ -66,6 +79,7 @@ def list_items(
 @router.post("", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)
 def create_item(data: ItemCreate, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     item = Item(**data.model_dump())
+    _normalize_item_price(item)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -79,6 +93,8 @@ def update_item(item_id: str, data: ItemUpdate, db: Session = Depends(get_db), _
         raise HTTPException(status_code=404, detail="Item not found")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
+    _normalize_item_price(item)
+    _sync_rejected_campaign_items(item)
     db.commit()
     db.refresh(item)
     return _item_to_response(item)
