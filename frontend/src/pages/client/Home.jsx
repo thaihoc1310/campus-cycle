@@ -79,35 +79,29 @@ function FeedImageCarousel({ images, title, fallback }) {
 function FeedItemCard({ item }) {
   return (
     <article className="feed-card">
-      <div className="feed-card__header">
-        <div className="feed-card__avatar feed-card__avatar--item">
-          <Package size={18} />
-        </div>
-        <div className="feed-card__header-info">
-          <span className="feed-card__author">{item.owner_name || 'Campus Member'}</span>
-          <span className="feed-card__time">{timeAgo(item.created_at)} · <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span></span>
-        </div>
-        {item.type === 'sell' && (
-          <span className="feed-card__price">{money(item.price)}</span>
-        )}
-        {item.type === 'donate' && (
-          <span className="feed-card__tag feed-card__tag--donate">Free</span>
-        )}
-      </div>
-
       <Link to={`/items/${item.id}`} className="feed-card__link">
         <FeedImageCarousel images={item.images || []} title={item.title} fallback={<Package size={56} />} />
       </Link>
 
       <div className="feed-card__body">
+        {item.type === 'sell' && (
+          <span className="feed-card__price-lg">{money(item.price)}</span>
+        )}
+        {item.type === 'donate' && (
+          <span className="feed-card__tag feed-card__tag--donate">Free</span>
+        )}
         <Link to={`/items/${item.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{item.title}</h3>
         </Link>
         {item.description && (
           <p className="feed-card__desc">{item.description}</p>
         )}
-        <div className="feed-card__meta-row">
-          {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
+        <div className="feed-card__footer">
+          <div className="feed-card__chips">
+            <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
+            {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
+          </div>
+          <span className="feed-card__time">{timeAgo(item.created_at)}</span>
         </div>
       </div>
 
@@ -124,27 +118,29 @@ function FeedItemCard({ item }) {
 function FeedCampaignCard({ campaign }) {
   return (
     <article className="feed-card feed-card--campaign">
-      <div className="feed-card__header">
-        <div className="feed-card__avatar feed-card__avatar--campaign">
-          <Megaphone size={18} />
-        </div>
-        <div className="feed-card__header-info">
-          <span className="feed-card__author">{campaign.organization_name || 'Campus Organization'}</span>
-          <span className="feed-card__time">{timeAgo(campaign.created_at)} · <span className="badge badge--approved">{campaign.type}</span></span>
-        </div>
-      </div>
-
       <Link to={`/campaigns/${campaign.id}`} className="feed-card__link">
         <FeedImageCarousel images={campaign.images || []} title={campaign.title} fallback={<Megaphone size={56} />} />
       </Link>
 
       <div className="feed-card__body">
+        <div className="feed-card__org-line">
+          <div className="feed-card__avatar feed-card__avatar--campaign">
+            <Megaphone size={12} />
+          </div>
+          <span>{campaign.organization_name || 'Campus Organization'}</span>
+        </div>
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{campaign.title}</h3>
         </Link>
         {campaign.description && (
           <p className="feed-card__desc">{campaign.description}</p>
         )}
+        <div className="feed-card__footer">
+          <div className="feed-card__chips">
+            <span className="badge badge--approved">{campaign.type}</span>
+          </div>
+          <span className="feed-card__time">{timeAgo(campaign.created_at)}</span>
+        </div>
       </div>
 
       <div className="feed-card__actions">

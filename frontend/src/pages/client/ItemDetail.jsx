@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Package } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -11,6 +11,7 @@ import './Client.css';
 
 export default function ItemDetail() {
   const { itemId } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
   const [item, setItem] = useState(null);
@@ -36,8 +37,8 @@ export default function ItemDetail() {
   const handleBuy = async () => {
     setBuying(true);
     try {
-      await api.post(`/client/items/${itemId}/purchase`);
-      toast('Purchase request created. Billing system will handle payment.', 'success');
+      const { data } = await api.post(`/client/items/${itemId}/purchase`);
+      navigate(`/payment/${data.transaction.id}`);
     } catch (err) {
       toast(err.response?.data?.detail || 'Could not create purchase request', 'error');
     } finally {
@@ -74,7 +75,6 @@ export default function ItemDetail() {
             <div className="client-card__meta">
               <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
               <span>{item.category_name || 'Uncategorized'}</span>
-              <span>Posted by {item.owner_name || 'Campus member'}</span>
             </div>
             <h1 className="client-detail__title">{item.title}</h1>
             <p>{item.description || 'No description provided.'}</p>

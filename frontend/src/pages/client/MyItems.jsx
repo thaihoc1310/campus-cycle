@@ -19,6 +19,8 @@ function itemLabel(item) {
 
 function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) {
   const canEdit = item.status === 'pending';
+  const canDelete = item.status !== 'reserved' && item.status !== 'sold';
+  const isReserved = item.status === 'reserved';
 
   return (
     <article
@@ -48,10 +50,12 @@ function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) 
                   <span>Edit</span>
                 </button>
               )}
-              <button type="button" className="client-item-card__menu-danger" onClick={onDelete}>
-                <Trash2 size={16} />
-                <span>Delete</span>
-              </button>
+              {canDelete && (
+                <button type="button" className="client-item-card__menu-danger" onClick={onDelete}>
+                  <Trash2 size={16} />
+                  <span>Delete</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -65,7 +69,7 @@ function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) 
         <h2 className="client-card__title">{item.title}</h2>
         <div className="client-card__footer">
           <span className={item.type === 'donate' ? 'text-muted' : 'client-price'}>{itemLabel(item)}</span>
-          <span className="text-muted">{item.status === 'approved' ? 'public' : 'not public'}</span>
+          <span className="text-muted">{isReserved ? 'awaiting handover' : (item.status === 'approved' ? 'public' : 'not public')}</span>
         </div>
       </div>
     </article>
@@ -457,6 +461,8 @@ export default function MyItems() {
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
+              <option value="reserved">Reserved</option>
+              <option value="sold">Sold</option>
               <option value="rejected">Rejected</option>
             </select>
           </div>

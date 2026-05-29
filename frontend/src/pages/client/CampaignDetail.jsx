@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Info, Megaphone, Package, Search } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -44,6 +44,7 @@ function DonatedItemModal({ item, onClose }) {
 
 export default function CampaignDetail() {
   const { campaignId } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
   const [campaign, setCampaign] = useState(null);
@@ -71,8 +72,8 @@ export default function CampaignDetail() {
   const donateMoney = async () => {
     setSaving(true);
     try {
-      await api.post(`/client/campaigns/${campaignId}/donate-money`, { amount: Number(amount || 0) });
-      toast('Money donation request created. Billing system will handle payment.', 'success');
+      const { data } = await api.post(`/client/campaigns/${campaignId}/donate-money`, { amount: Number(amount || 0) });
+      navigate(`/payment/${data.id}`);
     } catch (err) {
       toast(err.response?.data?.detail || 'Could not create donation request', 'error');
     } finally {

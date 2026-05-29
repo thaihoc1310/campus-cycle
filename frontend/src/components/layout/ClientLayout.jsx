@@ -9,6 +9,7 @@ import {
   Megaphone,
   Package,
   Recycle,
+  ShoppingBag,
   User,
   WalletCards,
 } from 'lucide-react';
@@ -132,6 +133,10 @@ export default function ClientLayout() {
                   <button type="button" className="account-menu__item" onClick={() => goTo('/my-items')}>
                     <Package size={18} />
                     <span>My Items</span>
+                  </button>
+                  <button type="button" className="account-menu__item" onClick={() => goTo('/my-purchases')}>
+                    <ShoppingBag size={18} />
+                    <span>My Purchases</span>
                   </button>
                   {orgs.length > 0 && (
                     <>

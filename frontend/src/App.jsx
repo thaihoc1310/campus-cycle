@@ -11,6 +11,8 @@ import PostItem from './pages/client/PostItem.jsx';
 import SellItem from './pages/client/SellItem.jsx';
 import DonateItem from './pages/client/DonateItem.jsx';
 import MyItems from './pages/client/MyItems.jsx';
+import MyPurchases from './pages/client/MyPurchases.jsx';
+import Payment from './pages/client/Payment.jsx';
 import ClientCampaigns from './pages/client/Campaigns.jsx';
 import CampaignDetail from './pages/client/CampaignDetail.jsx';
 import Profile from './pages/client/Profile.jsx';
@@ -50,6 +52,8 @@ export default function App() {
         <Route path="post-item" element={<PostItem />} />
         <Route path="sell-item" element={<SellItem />} />
         <Route path="my-items" element={<MyItems />} />
+        <Route path="my-purchases" element={<MyPurchases />} />
+        <Route path="payment/:transactionId" element={<Payment />} />
         <Route path="campaigns" element={<ClientCampaigns />} />
         <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
         <Route path="campaigns/:campaignId/donate-item" element={<DonateItem />} />

@@ -77,27 +77,29 @@ function FeedImageCarousel({ images, title, fallback }) {
 function CampaignFeedCard({ campaign }) {
   return (
     <article className="feed-card feed-card--campaign">
-      <div className="feed-card__header">
-        <div className="feed-card__avatar feed-card__avatar--campaign">
-          <Megaphone size={18} />
-        </div>
-        <div className="feed-card__header-info">
-          <span className="feed-card__author">{campaign.organization_name || 'Campus Organization'}</span>
-          <span className="feed-card__time">{timeAgo(campaign.created_at)} · <span className="badge badge--approved">{campaign.type}</span></span>
-        </div>
-      </div>
-
       <Link to={`/campaigns/${campaign.id}`} className="feed-card__link">
         <FeedImageCarousel images={campaign.images || []} title={campaign.title} fallback={<Megaphone size={56} />} />
       </Link>
 
       <div className="feed-card__body">
+        <div className="feed-card__org-line">
+          <div className="feed-card__avatar feed-card__avatar--campaign">
+            <Megaphone size={12} />
+          </div>
+          <span>{campaign.organization_name || 'Campus Organization'}</span>
+        </div>
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{campaign.title}</h3>
         </Link>
         {campaign.description && (
           <p className="feed-card__desc">{campaign.description}</p>
         )}
+        <div className="feed-card__footer">
+          <div className="feed-card__chips">
+            <span className="badge badge--approved">{campaign.type}</span>
+          </div>
+          <span className="feed-card__time">{timeAgo(campaign.created_at)}</span>
+        </div>
       </div>
 
       <div className="feed-card__actions">

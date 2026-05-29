@@ -21,7 +21,7 @@ class Item(Base):
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="sell")  # sell, donate
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
-    )  # pending, approved, rejected, sold, donated
+    )  # pending, approved, rejected, reserved, sold, donated
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )

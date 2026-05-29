@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -24,6 +25,56 @@ from app.services.uploads import delete_upload, replace_upload
 router = APIRouter(prefix="/api/client", tags=["client"])
 
 SELL_FEE_RATE = Decimal("0.20")
+
+# How long a buyer has to complete payment after initiating a purchase
+PENDING_SALE_TTL = timedelta(minutes=1)
+PENDING_DONATION_TTL = timedelta(minutes=1)
+# How long after payment before we auto-complete on behalf of buyer (no handover confirmation)
+PAID_AUTO_COMPLETE_TTL = timedelta(days=30)
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _ensure_tz(dt: datetime) -> datetime:
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def _transaction_expires_at(transaction: Transaction) -> datetime | None:
+    if transaction.status == "pending":
+        ttl = PENDING_SALE_TTL if transaction.transaction_type == "sale" else PENDING_DONATION_TTL
+        return _ensure_tz(transaction.created_at) + ttl
+    if transaction.status == "paid" and transaction.transaction_type == "sale":
+        return _ensure_tz(transaction.updated_at) + PAID_AUTO_COMPLETE_TTL
+    return None
+
+
+def _lazy_expire_pending(transaction: Transaction, db: Session) -> bool:
+    """Cancel a pending transaction if its payment window has passed. Returns True if cancelled."""
+    if transaction.status != "pending":
+        return False
+    expires_at = _transaction_expires_at(transaction)
+    if expires_at and _now() > expires_at:
+        transaction.status = "cancelled"
+        db.commit()
+        return True
+    return False
+
+
+def _lazy_auto_complete(transaction: Transaction, db: Session) -> bool:
+    """Auto-complete a paid transaction if the handover window has passed. Returns True if completed."""
+    if transaction.status != "paid" or transaction.transaction_type != "sale":
+        return False
+    expires_at = _transaction_expires_at(transaction)
+    if expires_at and _now() > expires_at:
+        item = db.query(Item).filter(Item.id == transaction.item_id).first()
+        if item:
+            item.status = "sold"
+        transaction.status = "completed"
+        db.commit()
+        return True
+    return False
 
 
 class ClientItemResponse(ItemResponse):
@@ -116,11 +167,6 @@ def _item_images(item_id: UUID, db: Session) -> list[ItemImage]:
     )
 
 
-def _item_main_image(item_id: UUID, db: Session) -> str | None:
-    images = _item_images(item_id, db)
-    image = images[0] if images else None
-    return image.image_path if image else None
-
 
 def _campaign_images(campaign_id: UUID, db: Session) -> list[CampaignImage]:
     return (
@@ -178,7 +224,7 @@ def _item_to_response(item: Item, db: Session) -> ClientItemResponse:
         status=_effective_item_status(item),
         category_id=item.category_id,
         user_id=item.user_id,
-        owner_name=item.owner.name if item.owner else None,
+        owner_name=None,
         category_name=item.category.name if item.category else None,
         main_image=images[0].image_path if images else None,
         images=[ItemImageResponse.model_validate(image) for image in images],
@@ -210,7 +256,37 @@ def _campaign_to_response(campaign: Campaign, db: Session) -> ClientCampaignResp
     )
 
 
-def _transaction_to_response(transaction: Transaction) -> TransactionResponse:
+def _transaction_to_response(transaction: Transaction, db: Session | None = None) -> TransactionResponse:
+    item_image = None
+    item_images: list[str] = []
+    if transaction.item and db is not None:
+        images = _item_images(transaction.item.id, db)
+        item_images = [img.image_path for img in images if img.image_path]
+        item_image = item_images[0] if item_images else None
+    campaign_image = None
+    campaign_title = None
+    if transaction.campaign and db is not None:
+        campaign_title = transaction.campaign.title
+        campaign_image = _campaign_main_image(transaction.campaign.id, db)
+
+    # Only reveal contact info when the transaction is paid or completed
+    reveal_contact = transaction.status in ("paid", "completed")
+    seller_name = None
+    seller_phone = None
+    seller_email = None
+    buyer_name = None
+    buyer_phone = None
+    buyer_email = None
+    if reveal_contact:
+        if transaction.to_user:
+            seller_name = transaction.to_user.name
+            seller_phone = transaction.to_user.phone
+            seller_email = transaction.to_user.email
+        if transaction.from_user:
+            buyer_name = transaction.from_user.name
+            buyer_phone = transaction.from_user.phone
+            buyer_email = transaction.from_user.email
+
     return TransactionResponse(
         id=transaction.id,
         transaction_type=transaction.transaction_type,
@@ -221,9 +297,23 @@ def _transaction_to_response(transaction: Transaction) -> TransactionResponse:
         amount=transaction.amount,
         platform_fee=transaction.platform_fee,
         status=transaction.status,
-        from_user_name=transaction.from_user.name if transaction.from_user else None,
-        to_user_name=transaction.to_user.name if transaction.to_user else None,
+        expires_at=_transaction_expires_at(transaction),
+        from_user_name=None,
+        to_user_name=None,
+        seller_name=seller_name,
+        seller_phone=seller_phone,
+        seller_email=seller_email,
+        buyer_name=buyer_name,
+        buyer_phone=buyer_phone,
+        buyer_email=buyer_email,
         item_title=transaction.item.title if transaction.item else None,
+        item_image=item_image,
+        item_images=item_images,
+        item_status=transaction.item.status if transaction.item else None,
+        item_description=transaction.item.description if transaction.item else None,
+        item_price=transaction.item.price if transaction.item else None,
+        campaign_title=campaign_title,
+        campaign_image=campaign_image,
         created_at=transaction.created_at,
         updated_at=transaction.updated_at,
     )
@@ -419,6 +509,8 @@ def delete_my_item(
     item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    if item.status in {"reserved", "sold"}:
+        raise HTTPException(status_code=400, detail="Cannot delete an item with an active or completed sale")
 
     for image in item.images:
         delete_upload(image.image_path)
@@ -514,7 +606,14 @@ def get_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     if item.user_id != current_user.id and not _is_public_item(item):
-        raise HTTPException(status_code=404, detail="Item not found")
+        # Also allow buyer who has a paid/completed transaction for this item
+        has_purchase = db.query(Transaction).filter(
+            Transaction.item_id == item.id,
+            Transaction.from_user_id == current_user.id,
+            Transaction.status.in_(["paid", "completed", "refunded"]),
+        ).first()
+        if not has_purchase:
+            raise HTTPException(status_code=404, detail="Item not found")
     return _item_to_response(item, db)
 
 
@@ -542,6 +641,38 @@ def purchase_item(
     if item.user_id == current_user.id:
         raise HTTPException(status_code=400, detail="You cannot buy your own item")
 
+    existing_active = (
+        db.query(Transaction)
+        .filter(
+            Transaction.item_id == item.id,
+            Transaction.status.in_(["pending", "paid"]),
+        )
+        .first()
+    )
+    if existing_active:
+        # Lazily expire stale pending transactions so other buyers are unblocked
+        if existing_active.status == "pending" and _lazy_expire_pending(existing_active, db):
+            db.refresh(item)  # item status unchanged for pending, but refresh to be safe
+            existing_active = None
+        elif existing_active.status == "paid":
+            # Item is legitimately reserved — block other buyers
+            if existing_active.from_user_id == current_user.id:
+                preview = _item_preview(item)
+                return PurchaseResponse(
+                    transaction=_transaction_to_response(existing_active, db),
+                    preview=preview,
+                )
+            raise HTTPException(status_code=409, detail="This item is currently reserved by another buyer")
+        elif existing_active and existing_active.from_user_id == current_user.id:
+            # Same buyer has an active pending — redirect them to payment
+            preview = _item_preview(item)
+            return PurchaseResponse(
+                transaction=_transaction_to_response(existing_active, db),
+                preview=preview,
+            )
+        elif existing_active:
+            raise HTTPException(status_code=409, detail="This item is currently reserved by another buyer")
+
     preview = _item_preview(item)
     transaction = Transaction(
         transaction_type="sale",
@@ -556,7 +687,7 @@ def purchase_item(
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
-    return PurchaseResponse(transaction=_transaction_to_response(transaction), preview=preview)
+    return PurchaseResponse(transaction=_transaction_to_response(transaction, db), preview=preview)
 
 
 @router.get("/campaigns", response_model=PaginatedResponse[ClientCampaignResponse])
@@ -666,7 +797,7 @@ def donate_money_to_campaign(
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
-    return _transaction_to_response(transaction)
+    return _transaction_to_response(transaction, db)
 
 
 @router.post("/campaigns/{campaign_id}/items", status_code=status.HTTP_201_CREATED)
@@ -703,3 +834,165 @@ def submit_item_to_campaign(
     db.add(campaign_item)
     db.commit()
     return {"message": "Item submitted to campaign", "status": campaign_item.status}
+
+
+@router.get("/transactions/my-purchases", response_model=PaginatedResponse[TransactionResponse])
+def list_my_purchases(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=60),
+    status_filter: str = Query("", alias="status"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = db.query(Transaction).filter(Transaction.from_user_id == current_user.id)
+    if status_filter:
+        query = query.filter(Transaction.status == status_filter)
+
+    # Fetch without status filter first for lazy expiry, then re-query if needed
+    transactions = (
+        query.order_by(Transaction.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    # Lazily expire/auto-complete; if any changed, re-fetch this page
+    changed = any(_lazy_expire_pending(tx, db) or _lazy_auto_complete(tx, db) for tx in transactions)
+    if changed:
+        transactions = (
+            query.order_by(Transaction.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+
+    total = query.count()
+    return PaginatedResponse(
+        items=[_transaction_to_response(tx, db) for tx in transactions],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=math.ceil(total / page_size) if total > 0 else 1,
+    )
+
+
+@router.get("/transactions/{transaction_id}", response_model=TransactionResponse)
+def get_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if current_user.id not in {transaction.from_user_id, transaction.to_user_id}:
+        raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
+    _lazy_expire_pending(transaction, db)
+    _lazy_auto_complete(transaction, db)
+    db.refresh(transaction)
+    return _transaction_to_response(transaction, db)
+
+
+@router.post("/transactions/{transaction_id}/mark-paid", response_model=TransactionResponse)
+def mark_transaction_paid(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.from_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the buyer can confirm payment")
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Transaction is already {transaction.status}")
+
+    # Reject if payment window has expired
+    if _lazy_expire_pending(transaction, db):
+        raise HTTPException(status_code=410, detail="Payment window has expired. Please initiate a new purchase.")
+
+    if transaction.transaction_type == "sale":
+        item = db.query(Item).filter(Item.id == transaction.item_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item no longer exists")
+        if item.status not in {"approved", "reserved"}:
+            raise HTTPException(status_code=400, detail="Item is no longer available")
+        item.status = "reserved"
+        transaction.status = "paid"
+    else:
+        # Donation: skip escrow, go straight to completed
+        transaction.status = "completed"
+
+    db.commit()
+    db.refresh(transaction)
+    return _transaction_to_response(transaction, db)
+
+
+@router.post("/transactions/{transaction_id}/mark-failed", response_model=TransactionResponse)
+def mark_transaction_failed(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.from_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the buyer can cancel this payment")
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Transaction is already {transaction.status}")
+
+    transaction.status = "cancelled"
+    db.commit()
+    db.refresh(transaction)
+    return _transaction_to_response(transaction, db)
+
+
+@router.post("/transactions/{transaction_id}/confirm-receipt", response_model=TransactionResponse)
+def confirm_transaction_receipt(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.from_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the buyer can confirm receipt")
+    if transaction.transaction_type != "sale":
+        raise HTTPException(status_code=400, detail="Only item purchases can be confirmed")
+    if transaction.status != "paid":
+        raise HTTPException(status_code=400, detail=f"Transaction must be paid before confirming receipt (current: {transaction.status})")
+
+    item = db.query(Item).filter(Item.id == transaction.item_id).first()
+    if item:
+        item.status = "sold"
+    transaction.status = "completed"
+    db.commit()
+    db.refresh(transaction)
+    return _transaction_to_response(transaction, db)
+
+
+@router.post("/transactions/{transaction_id}/reject-handover", response_model=TransactionResponse)
+def reject_transaction_handover(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.from_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the buyer can reject the handover")
+    if transaction.transaction_type != "sale":
+        raise HTTPException(status_code=400, detail="Only item purchases can be rejected")
+    if transaction.status != "paid":
+        raise HTTPException(status_code=400, detail=f"Can only reject a paid transaction (current: {transaction.status})")
+
+    # Return item to approved so seller can re-list; money goes back to buyer (refunded state)
+    item = db.query(Item).filter(Item.id == transaction.item_id).first()
+    if item:
+        item.status = "approved"
+    transaction.status = "refunded"
+    db.commit()
+    db.refresh(transaction)
+    return _transaction_to_response(transaction, db)
