@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Maximize2, Package, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, Package, Plus, Star, Trash2, X } from 'lucide-react';
 import './Client.css';
 
 function imagePath(image) {
   return typeof image === 'string' ? image : image?.image_path;
 }
 
-export default function ClientImageGallery({ images = [], title = 'Image', fallbackIcon = <Package size={72} />, variant = 'default' }) {
+export default function ClientImageGallery({ images = [], title = 'Image', fallbackIcon = <Package size={72} />, variant = 'default', onAddImage, onDeleteImage, onSetMainImage }) {
+  const uploadRef = useRef(null);
   const paths = useMemo(() => images.map(imagePath).filter(Boolean), [images]);
   const stripRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -205,27 +206,75 @@ export default function ClientImageGallery({ images = [], title = 'Image', fallb
     );
   }
 
+  const hasManagement = !!(onDeleteImage || onSetMainImage);
+  const showThumbStrip = paths.length > 1 || onAddImage;
+
+  const handleUploadChange = (e) => {
+    if (e.target.files?.length && onAddImage) {
+      onAddImage(e);
+      e.target.value = '';
+    }
+  };
+
   return (
-    <div className={`client-image-gallery ${paths.length <= 1 ? 'client-image-gallery--single' : ''}`}>
-      {paths.length > 1 && (
+    <div className={`client-image-gallery ${!showThumbStrip ? 'client-image-gallery--single' : ''}`}>
+      {showThumbStrip && (
         <div className="client-image-gallery__thumbs">
-          {paths.slice(0, 6).map((path, index) => (
+          {paths.map((path, index) => {
+            const imageObj = images[index];
+            const imageId = typeof imageObj === 'object' ? imageObj?.id : null;
+            const isMain = typeof imageObj === 'object' ? imageObj?.is_main : false;
+            return (
+              <div key={`${path}-${index}`} className={`client-image-gallery__thumb-wrap ${hasManagement ? 'client-image-gallery__thumb-wrap--managed' : ''}`}>
+                <button
+                  type="button"
+                  className={`client-image-gallery__thumb ${index === activeIndex ? 'client-image-gallery__thumb--active' : ''}`}
+                  onClick={() => setActiveIndex(index)}
+                  aria-label={`View image ${index + 1}`}
+                >
+                  <img src={path} alt="" />
+                  {isMain && <span className="client-image-gallery__thumb-main">Main</span>}
+                </button>
+                {hasManagement && imageId && (
+                  <div className="client-image-gallery__thumb-actions">
+                    {onSetMainImage && (
+                      <button type="button" title="Set as main" onClick={(e) => { e.stopPropagation(); onSetMainImage(imageId); }} disabled={isMain}>
+                        <Star size={12} />
+                      </button>
+                    )}
+                    {onDeleteImage && (
+                      <button type="button" title="Delete image" onClick={(e) => { e.stopPropagation(); onDeleteImage(imageId); }}>
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {onAddImage && (
             <button
-              key={`${path}-${index}`}
               type="button"
-              className={`client-image-gallery__thumb ${index === activeIndex ? 'client-image-gallery__thumb--active' : ''}`}
-              onClick={() => setActiveIndex(index)}
-              aria-label={`View image ${index + 1}`}
+              className="client-image-gallery__thumb client-image-gallery__thumb--add"
+              onClick={() => uploadRef.current?.click()}
+              aria-label="Upload image"
             >
-              <img src={path} alt="" />
+              <Plus size={20} />
+              <input ref={uploadRef} type="file" accept="image/*" multiple onChange={handleUploadChange} hidden />
             </button>
-          ))}
+          )}
         </div>
       )}
 
       <button type="button" className="client-image-gallery__main" onClick={() => setLightboxOpen(true)} aria-label={`Open ${title} image`}>
-        <img src={activePath} alt={title} />
-        <span className="client-image-gallery__expand"><Maximize2 size={16} /> View</span>
+        {activePath ? (
+          <>
+            <img src={activePath} alt={title} />
+            <span className="client-image-gallery__expand"><Maximize2 size={16} /> View</span>
+          </>
+        ) : (
+          <div className="client-image-gallery__placeholder">{fallbackIcon}</div>
+        )}
       </button>
 
       {renderLightbox()}

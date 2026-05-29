@@ -13,17 +13,21 @@
 .input-field {
   width: 100%;
   padding: 10px 14px;
-  background: var(--muted);
-  border: 2px solid transparent;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--fg);
   font-size: var(--font-size-sm);
   transition: all var(--transition-normal);
   outline: none;
 }
+.input-field:hover:not(:disabled) {
+  border-color: var(--gray-400);
+}
 .input-field:focus {
   background: var(--bg);
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 .input-field:disabled {
   color: var(--gray-500);
@@ -67,6 +71,7 @@
 .custom-select__trigger--open {
   background: var(--bg);
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .custom-select__value {

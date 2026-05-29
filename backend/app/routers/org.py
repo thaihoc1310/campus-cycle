@@ -53,11 +53,13 @@ class OrgCampaignItemResponse(BaseModel):
     status: str
     created_at: datetime
     item_title: str
+    item_description: str | None = None
     item_status: str
     item_type: str
     donor_name: str | None = None
     donor_email: str | None = None
     main_image: str | None = None
+    item_images: list[str] = []
 
 
 class OrgMoneyDonationResponse(BaseModel):
@@ -147,6 +149,12 @@ def _campaign_to_response(campaign: Campaign, db: Session) -> OrgCampaignRespons
 
 def _campaign_item_to_response(campaign_item: CampaignItem, db: Session) -> OrgCampaignItemResponse:
     item = campaign_item.item
+    item_images_rows = (
+        db.query(ItemImage)
+        .filter(ItemImage.item_id == item.id)
+        .order_by(ItemImage.is_main.desc(), ItemImage.created_at.asc())
+        .all()
+    )
     return OrgCampaignItemResponse(
         id=campaign_item.id,
         item_id=item.id,
@@ -154,11 +162,13 @@ def _campaign_item_to_response(campaign_item: CampaignItem, db: Session) -> OrgC
         status=campaign_item.status,
         created_at=campaign_item.created_at,
         item_title=item.title,
+        item_description=item.description,
         item_status=item.status,
         item_type=item.type,
         donor_name=item.owner.name if item.owner else None,
         donor_email=item.owner.email if item.owner else None,
         main_image=_item_main_image(item.id, db),
+        item_images=[img.image_path for img in item_images_rows],
     )
 
 
@@ -464,6 +474,33 @@ def update_org_campaign(
     db.commit()
     db.refresh(campaign)
     return _campaign_to_response(campaign, db)
+
+
+@router.delete("/{org_id}/campaigns/{campaign_id}", status_code=status.HTTP_200_OK)
+def delete_org_campaign(
+    org_id: str,
+    campaign_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = _require_org_admin(org_id, current_user, db)
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.organization_id == org.id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.status == "approved":
+        raise HTTPException(status_code=400, detail="Cannot delete an approved campaign")
+
+    # Clean up image files from disk
+    images = db.query(CampaignImage).filter(CampaignImage.campaign_id == campaign.id).all()
+    for image in images:
+        full_path = os.path.join(settings.UPLOAD_DIR, image.image_path.lstrip("/uploads/"))
+        if os.path.exists(full_path):
+            os.remove(full_path)
+
+    db.delete(campaign)
+    db.commit()
+    return {"message": "Campaign deleted successfully"}
 
 
 @router.post("/{org_id}/campaigns/{campaign_id}/images", response_model=list[CampaignImageResponse], status_code=status.HTTP_201_CREATED)

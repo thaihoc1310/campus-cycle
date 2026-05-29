@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Check, Image as ImageIcon, Megaphone, Package, Star, Trash2, Upload, X } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Calendar,
+  Check,
+  Clock,
+  DollarSign,
+  Edit3,
+  Megaphone,
+  MoreVertical,
+  Package,
+  Trash2,
+  X,
+} from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
+import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
 import Input from '../../components/ui/Input.jsx';
+import Modal from '../../components/ui/Modal.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
 import ClientImageGallery from '../client/ClientImageGallery.jsx';
 import { money } from '../client/clientUtils.js';
@@ -21,14 +34,40 @@ function fmtDate(value) {
   return value ? new Date(value).toLocaleDateString() : 'No date';
 }
 
+/** Compute the effective display status for an org campaign item. */
+function effectiveItemStatus(item) {
+  if (item.item_status === 'rejected' || item.status === 'rejected') {
+    return { label: 'Rejected', variant: 'rejected' };
+  }
+  if (item.item_status === 'pending') {
+    return { label: 'Awaiting Admin', variant: 'pending' };
+  }
+  if (item.status === 'approved' && item.item_status === 'approved') {
+    return { label: 'Approved', variant: 'approved' };
+  }
+  if (item.status === 'pending' && item.item_status === 'approved') {
+    return { label: 'Pending Review', variant: 'pending' };
+  }
+  return { label: item.status, variant: item.status };
+}
+
 export default function OrgCampaignDetail() {
   const { orgId, campaignId } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
-  const fileRef = useRef(null);
+
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', type: 'fundraising', start_date: '', end_date: '' });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Menu & modals
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);
+  const menuRef = useRef(null);
 
   const fetchDetail = useCallback(() => {
     api.get(`/org/${orgId}/campaigns/${campaignId}`)
@@ -47,6 +86,17 @@ export default function OrgCampaignDetail() {
 
   useEffect(() => { fetchDetail(); }, [fetchDetail]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  /* ---- Actions ---- */
   const handleSave = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -58,10 +108,25 @@ export default function OrgCampaignDetail() {
       });
       setDetail((current) => current ? { ...current, campaign: res.data } : current);
       toast('Campaign updated.', 'success');
+      setEditOpen(false);
     } catch (err) {
       toast(err.response?.data?.detail || 'Could not update campaign', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/org/${orgId}/campaigns/${campaignId}`);
+      toast('Campaign deleted.', 'success');
+      navigate(`/org/${orgId}/campaigns`);
+    } catch (err) {
+      toast(err.response?.data?.detail || 'Could not delete campaign', 'error');
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
     }
   };
 
@@ -81,7 +146,6 @@ export default function OrgCampaignDetail() {
       toast(err.response?.data?.detail || 'Upload failed', 'error');
     } finally {
       setUploading(false);
-      event.target.value = '';
     }
   };
 
@@ -109,21 +173,25 @@ export default function OrgCampaignDetail() {
     try {
       await api.put(`/org/${orgId}/campaign-items/${campaignItemId}`, { status });
       toast(status === 'approved' ? 'Item approved.' : 'Item rejected.', 'success');
+      setPreviewItem(null);
       fetchDetail();
     } catch (err) {
       toast(err.response?.data?.detail || 'Could not update item', 'error');
     }
   };
 
+  /* ---- Loading ---- */
   if (!detail) {
     return <div className="org-page"><div className="client-empty"><span className="client-empty__title">Loading campaign detail...</span></div></div>;
   }
 
   const { campaign, images, stats, money_donations: donations, campaign_items: campaignItems } = detail;
-  const pendingItems = campaignItems.filter((item) => item.status === 'pending' && item.item_status === 'approved');
+  const canDelete = campaign.status !== 'approved';
+  const actionableItem = previewItem && previewItem.status === 'pending' && previewItem.item_status === 'approved';
 
   return (
     <div className="org-page">
+      {/* Header */}
       <div className="org-page__header">
         <div>
           <p className="org-eyebrow">Campaign detail</p>
@@ -133,113 +201,131 @@ export default function OrgCampaignDetail() {
         <Link className="btn btn--secondary btn--md" to={`/org/${orgId}/campaigns`}>Back to Campaigns</Link>
       </div>
 
+      {/* Hero Section */}
       <section className="org-detail-hero">
-        <ClientImageGallery images={images} title={campaign.title} fallbackIcon={<Megaphone size={64} />} />
+        <ClientImageGallery
+          images={images}
+          title={campaign.title}
+          fallbackIcon={<Megaphone size={64} />}
+          onAddImage={handleUpload}
+          onDeleteImage={deleteImage}
+          onSetMainImage={setMainImage}
+        />
         <div className="org-detail-hero__content">
-          <div className="org-card-meta">
-            <span className={`badge badge--${campaign.status}`}>{campaign.status}</span>
-            <span>{campaign.type}</span>
+          {/* Status + Type + Menu */}
+          <div className="org-detail-hero__top">
+            <div className="org-card-meta">
+              <span className={`badge badge--${campaign.status}`}>{campaign.status}</span>
+              <span className="org-detail-type-badge">{campaign.type}</span>
+            </div>
+            <div className="org-menu-container" ref={menuRef}>
+              <button type="button" className="org-menu-trigger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Campaign actions">
+                <MoreVertical size={20} />
+              </button>
+              {menuOpen && (
+                <div className="org-menu-dropdown">
+                  <button type="button" onClick={() => { setMenuOpen(false); setEditOpen(true); }}>
+                    <Edit3 size={15} /> Edit Campaign
+                  </button>
+                  <button
+                    type="button"
+                    className="org-menu-dropdown__danger"
+                    disabled={!canDelete}
+                    onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
+                    title={!canDelete ? 'Cannot delete an approved campaign' : ''}
+                  >
+                    <Trash2 size={15} /> Delete Campaign
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <p>{campaign.description || 'No description provided.'}</p>
-          <div className="org-review-strip org-review-strip--compact">
-            <div>
-              <strong>{stats.pending_items}</strong>
-              <span>pending items</span>
+
+          {/* Description */}
+          <p className="org-detail-desc">{campaign.description || 'No description provided.'}</p>
+
+          {/* Info Grid */}
+          <div className="org-detail-info-grid">
+            <div className="org-detail-info-block">
+              <span className="org-detail-info-block__icon org-detail-info-block__icon--green"><Calendar size={14} /></span>
+              <div>
+                <span className="org-detail-info-block__label">Start Date</span>
+                <strong>{fmtDate(campaign.start_date)}</strong>
+              </div>
             </div>
-            <div>
-              <strong>{stats.approved_items}</strong>
-              <span>approved items</span>
-            </div>
-            <div>
-              <strong>{money(stats.total_money_donations || 0)}</strong>
-              <span>raised</span>
+            <div className="org-detail-info-block">
+              <span className="org-detail-info-block__icon org-detail-info-block__icon--amber"><Clock size={14} /></span>
+              <div>
+                <span className="org-detail-info-block__label">End Date</span>
+                <strong>{fmtDate(campaign.end_date)}</strong>
+              </div>
             </div>
           </div>
+
+          {/* Stats Strip — conditional by campaign type */}
+          {campaign.type === 'donation' ? (
+            <div className="org-review-strip org-review-strip--compact">
+              <div>
+                <strong>{stats.pending_items}</strong>
+                <span>pending items</span>
+              </div>
+              <div>
+                <strong>{stats.approved_items}</strong>
+                <span>approved items</span>
+              </div>
+              <div>
+                <strong>{stats.rejected_items}</strong>
+                <span>rejected items</span>
+              </div>
+            </div>
+          ) : (
+            <div className="org-review-strip org-review-strip--compact">
+              <div>
+                <strong>{stats.pending_items}</strong>
+                <span>pending items</span>
+              </div>
+              <div>
+                <strong>{stats.approved_items}</strong>
+                <span>approved items</span>
+              </div>
+              <div>
+                <strong>{money(stats.total_money_donations || 0)}</strong>
+                <span>raised</span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="org-detail-grid">
-        <form className="org-panel" onSubmit={handleSave}>
-          <div className="org-panel__header">
-            <h2>Campaign Settings</h2>
-            <span>Campus approval controls public visibility</span>
-          </div>
-          <Input id="org-detail-title" label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-          <div className="org-form-grid">
-            <Input id="org-detail-type" label="Type" type="select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="fundraising">Fundraising</option>
-              <option value="donation">Donation</option>
-            </Input>
-            <Input id="org-detail-status" label="Status" value={campaign.status} disabled />
-          </div>
-          <div className="org-form-grid">
-            <Input id="org-detail-start" label="Start Date" type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-            <Input id="org-detail-end" label="End Date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
-          </div>
-          <Input id="org-detail-desc" label="Description" type="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-        </form>
-
-        <section className="org-panel">
-          <div className="org-panel__header">
-            <h2>Campaign Images</h2>
-            <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              <Upload size={16} />
-              {uploading ? 'Uploading...' : 'Upload'}
-            </Button>
-            <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleUpload} hidden />
-          </div>
-          {images.length ? (
-            <div className="org-image-grid">
-              {images.map((image) => (
-                <div key={image.id} className={`org-image-card ${image.is_main ? 'org-image-card--main' : ''}`}>
-                  <img src={image.image_path} alt="" />
-                  {image.is_main && <span>Main</span>}
-                  <div className="org-image-card__actions">
-                    <button type="button" title="Set main" onClick={() => setMainImage(image.id)} disabled={image.is_main}><Star size={16} /></button>
-                    <button type="button" title="Delete" onClick={() => deleteImage(image.id)}><Trash2 size={16} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="org-empty-inline">
-              <ImageIcon size={40} />
-              <span>No campaign images yet. Upload to add visual appeal.</span>
-            </div>
-          )}
-        </section>
-      </section>
-
+      {/* Submitted Items / Fund Contributors */}
       {campaign.type === 'donation' ? (
         <section className="org-panel">
           <div className="org-panel__header">
             <h2>Submitted Items</h2>
-            <span>{pendingItems.length} pending review</span>
+            <span>{campaignItems.filter((i) => i.status === 'pending' && i.item_status === 'approved').length} pending review</span>
           </div>
           {campaignItems.length ? (
             <div className="org-submission-list">
-              {campaignItems.map((item) => (
-                <div key={item.id} className="org-submission">
-                  <div className="org-submission__media">
-                    {item.main_image ? <img src={item.main_image} alt={item.item_title} /> : <Package size={24} />}
-                  </div>
-                  <div>
-                    <div className="org-card-meta">
-                      <span className={`badge badge--${item.status}`}>campaign: {item.status}</span>
-                      <span className={`badge badge--${item.item_status}`}>item: {item.item_status}</span>
+              {campaignItems.map((item) => {
+                const es = effectiveItemStatus(item);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="org-submission org-submission--clickable"
+                    onClick={() => setPreviewItem(item)}
+                  >
+                    <div className="org-submission__media">
+                      {item.main_image ? <img src={item.main_image} alt={item.item_title} /> : <Package size={24} />}
                     </div>
-                    <h3>{item.item_title}</h3>
-                    <p>{item.donor_name || 'Unknown donor'} · {item.donor_email || 'No email'}</p>
-                  </div>
-                  {item.status === 'pending' && item.item_status === 'approved' && (
-                    <div className="org-submission__actions">
-                      <Button variant="primary" size="sm" onClick={() => updateCampaignItem(item.id, 'approved')}><Check size={16} /> Approve</Button>
-                      <Button variant="danger" size="sm" onClick={() => updateCampaignItem(item.id, 'rejected')}><X size={16} /> Reject</Button>
+                    <div className="org-submission__info">
+                      <h3>{item.item_title}</h3>
+                      <p>{item.donor_name || 'Unknown donor'}</p>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <span className={`badge badge--${es.variant}`}>{es.label}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="client-empty">
@@ -277,6 +363,97 @@ export default function OrgCampaignDetail() {
           )}
         </section>
       )}
+
+      {/* ---- Edit Campaign Modal ---- */}
+      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Campaign" size="md">
+        <form className="org-modal-form" onSubmit={handleSave}>
+          <Input id="org-edit-title" label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          <div className="org-form-grid">
+            <Input id="org-edit-type" label="Type" type="select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <option value="fundraising">Fundraising</option>
+              <option value="donation">Donation</option>
+            </Input>
+            <Input id="org-edit-status" label="Status" value={campaign.status} disabled />
+          </div>
+          <div className="org-form-grid">
+            <Input id="org-edit-start" label="Start Date" type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+            <Input id="org-edit-end" label="End Date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+          </div>
+          <Input id="org-edit-desc" label="Description" type="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <div className="modal__actions">
+            <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ---- Delete Confirm ---- */}
+      <ConfirmDialog
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Campaign"
+        message={`Are you sure you want to delete "${campaign.title}"? This action cannot be undone.`}
+        loading={deleting}
+      />
+
+      {/* ---- Item Preview Modal ---- */}
+      <Modal isOpen={!!previewItem} onClose={() => setPreviewItem(null)} title="Item Details" size="md">
+        {previewItem && (() => {
+          const es = effectiveItemStatus(previewItem);
+          const previewImages = (previewItem.item_images || []).length
+            ? previewItem.item_images.map((p) => ({ image_path: p }))
+            : previewItem.main_image ? [{ image_path: previewItem.main_image }] : [];
+          return (
+            <div className="org-item-preview">
+              {previewImages.length > 0 ? (
+                <ClientImageGallery images={previewImages} title={previewItem.item_title} fallbackIcon={<Package size={48} />} />
+              ) : (
+                <div className="org-item-preview__media">
+                  <Package size={48} />
+                </div>
+              )}
+              <div className="org-item-preview__body">
+                <div className="org-item-preview__header">
+                  <h3>{previewItem.item_title}</h3>
+                  <span className={`badge badge--${es.variant}`}>{es.label}</span>
+                </div>
+                {previewItem.item_description && (
+                  <p className="org-detail-desc">{previewItem.item_description}</p>
+                )}
+                <div className="org-item-preview__details">
+                  <div className="org-item-preview__detail">
+                    <span>Donor</span>
+                    <strong>{previewItem.donor_name || 'Unknown'}</strong>
+                  </div>
+                  <div className="org-item-preview__detail">
+                    <span>Email</span>
+                    <strong>{previewItem.donor_email || 'N/A'}</strong>
+                  </div>
+                  <div className="org-item-preview__detail">
+                    <span>Item Type</span>
+                    <strong style={{ textTransform: 'capitalize' }}>{previewItem.item_type}</strong>
+                  </div>
+                  <div className="org-item-preview__detail">
+                    <span>Submitted</span>
+                    <strong>{new Date(previewItem.created_at).toLocaleDateString()}</strong>
+                  </div>
+                </div>
+              </div>
+              {actionableItem && (
+                <div className="org-item-preview__actions">
+                  <Button variant="primary" onClick={() => updateCampaignItem(previewItem.id, 'approved')}>
+                    <Check size={16} /> Approve
+                  </Button>
+                  <Button variant="danger" onClick={() => updateCampaignItem(previewItem.id, 'rejected')}>
+                    <X size={16} /> Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
