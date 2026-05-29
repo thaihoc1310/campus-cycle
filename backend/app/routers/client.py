@@ -1,11 +1,12 @@
 import math
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -84,6 +85,9 @@ class ClientItemResponse(ItemResponse):
     campaign_item_status: str | None = None
     campaign_id: UUID | None = None
     campaign_name: str | None = None
+    buyer_name: str | None = None
+    buyer_phone: str | None = None
+    buyer_email: str | None = None
 
 
 class ClientCampaignResponse(CampaignResponse):
@@ -215,6 +219,24 @@ def _is_public_item(item: Item) -> bool:
 def _item_to_response(item: Item, db: Session) -> ClientItemResponse:
     campaign_item = _primary_campaign_item(item)
     images = _item_images(item.id, db)
+
+    # Look up buyer info when item is reserved or sold
+    buyer_name = buyer_phone = buyer_email = None
+    if item.status in ("reserved", "sold"):
+        txn = (
+            db.query(Transaction)
+            .filter(
+                Transaction.item_id == item.id,
+                Transaction.status.in_(["paid", "completed"]),
+            )
+            .order_by(Transaction.updated_at.desc())
+            .first()
+        )
+        if txn and txn.from_user:
+            buyer_name = txn.from_user.name
+            buyer_phone = txn.from_user.phone
+            buyer_email = txn.from_user.email
+
     return ClientItemResponse(
         id=item.id,
         title=item.title,
@@ -232,6 +254,9 @@ def _item_to_response(item: Item, db: Session) -> ClientItemResponse:
         campaign_item_status=campaign_item.status if campaign_item else None,
         campaign_id=campaign_item.campaign_id if campaign_item else None,
         campaign_name=campaign_item.campaign.title if campaign_item and campaign_item.campaign else None,
+        buyer_name=buyer_name,
+        buyer_phone=buyer_phone,
+        buyer_email=buyer_email,
         created_at=item.created_at,
         updated_at=item.updated_at,
     )
@@ -996,3 +1021,156 @@ def reject_transaction_handover(
     db.commit()
     db.refresh(transaction)
     return _transaction_to_response(transaction, db)
+
+
+# ─── Notifications ────────────────────────────────────────────────
+
+class NotificationItem(BaseModel):
+    id: str
+    type: str  # item_approved, item_rejected, sale_paid, sale_completed, sale_refunded, donation_approved, donation_rejected, payment_cancelled
+    message: str
+    link: str | None = None
+    timestamp: datetime
+    is_read: bool = False
+
+
+class NotificationsResponse(BaseModel):
+    items: list[NotificationItem]
+    unread_count: int
+
+
+def _build_notifications(user: User, db: Session, after: datetime | None = None) -> list[NotificationItem]:
+    """Derive notifications from existing Item, Transaction, and CampaignItem data."""
+    notifs: list[NotificationItem] = []
+
+    # 1. Item status changes — owner's items that got approved/rejected
+    item_statuses = db.query(Item).filter(
+        Item.user_id == user.id,
+        Item.status.in_(["approved", "rejected"]),
+    ).order_by(Item.updated_at.desc()).limit(30).all()
+
+    for item in item_statuses:
+        ntype = f"item_{item.status}"
+        msg = f'Your item "{item.title}" has been {item.status} by campus admin.'
+        link = f"/my-items?item={item.id}"
+        notifs.append(NotificationItem(
+            id=f"item-{item.id}-{item.status}",
+            type=ntype,
+            message=msg,
+            link=link,
+            timestamp=_ensure_tz(item.updated_at),
+        ))
+
+    # 2. Transaction events — as seller (to_user_id)
+    seller_txns = db.query(Transaction).filter(
+        Transaction.to_user_id == user.id,
+        Transaction.status.in_(["paid", "completed", "refunded"]),
+    ).order_by(Transaction.updated_at.desc()).limit(30).all()
+
+    status_messages = {
+        "paid": "Someone purchased your item",
+        "completed": "Sale completed for",
+        "refunded": "Buyer rejected handover for",
+    }
+    for txn in seller_txns:
+        item_title = txn.item.title if txn.item else "an item"
+        item_id_param = f"?item={txn.item_id}" if txn.item_id else ""
+        msg = f'{status_messages.get(txn.status, "Update on")} "{item_title}".'
+        link = f"/my-items{item_id_param}"
+        ntype = f"sale_{txn.status}"
+        notifs.append(NotificationItem(
+            id=f"txn-seller-{txn.id}-{txn.status}",
+            type=ntype,
+            message=msg,
+            link=link,
+            timestamp=_ensure_tz(txn.updated_at),
+        ))
+
+    # 3. Transaction events — as buyer (from_user_id), cancelled
+    buyer_cancelled = db.query(Transaction).filter(
+        Transaction.from_user_id == user.id,
+        Transaction.status == "cancelled",
+    ).order_by(Transaction.updated_at.desc()).limit(10).all()
+
+    for txn in buyer_cancelled:
+        item_title = txn.item.title if txn.item else "an item"
+        notifs.append(NotificationItem(
+            id=f"txn-buyer-{txn.id}-cancelled",
+            type="payment_cancelled",
+            message=f'Payment expired for "{item_title}".',
+            link="/my-purchases",
+            timestamp=_ensure_tz(txn.updated_at),
+        ))
+
+    # 4. Campaign item status changes — donation items reviewed by org
+    campaign_items_query = (
+        db.query(CampaignItem)
+        .join(Item, CampaignItem.item_id == Item.id)
+        .filter(
+            Item.user_id == user.id,
+            CampaignItem.status.in_(["approved", "rejected"]),
+        )
+        .order_by(CampaignItem.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    for ci in campaign_items_query:
+        item_title = ci.item.title if ci.item else "your donation"
+        campaign_title = ci.campaign.title if ci.campaign else "a campaign"
+        notifs.append(NotificationItem(
+            id=f"ci-{ci.id}-{ci.status}",
+            type=f"donation_{ci.status}",
+            message=f'Your donation "{item_title}" was {ci.status} by {campaign_title}.',
+            link=f"/my-items?item={ci.item_id}",
+            timestamp=_ensure_tz(ci.created_at),
+        ))
+
+    # Sort by timestamp desc
+    notifs.sort(key=lambda n: n.timestamp, reverse=True)
+
+    # Mark read/unread based on after timestamp
+    if after:
+        for n in notifs:
+            n.is_read = n.timestamp <= after
+
+    return notifs[:50]
+
+
+@router.get("/notifications", response_model=NotificationsResponse)
+def get_notifications(
+    after: Optional[str] = Query(None, description="ISO timestamp — notifications before this are marked as read"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    after_dt = None
+    if after:
+        try:
+            after_dt = datetime.fromisoformat(after)
+            if after_dt.tzinfo is None:
+                after_dt = after_dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    notifs = _build_notifications(current_user, db, after_dt)
+    unread = sum(1 for n in notifs if not n.is_read)
+    return NotificationsResponse(items=notifs, unread_count=unread)
+
+
+@router.get("/notifications/unread-count")
+def get_unread_count(
+    after: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_active_user),
+):
+    after_dt = None
+    if after:
+        try:
+            after_dt = datetime.fromisoformat(after)
+            if after_dt.tzinfo is None:
+                after_dt = after_dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    notifs = _build_notifications(current_user, db, after_dt)
+    unread = sum(1 for n in notifs if not n.is_read)
+    return {"unread_count": unread}

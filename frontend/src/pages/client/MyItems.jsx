@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Filter, ImagePlus, MoreVertical, Package, Pencil, PlusCircle, Search, Star, Trash2, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, Filter, ImagePlus, Mail, MoreVertical, Package, Pencil, Phone, PlusCircle, Search, Star, Trash2, User, X } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
@@ -71,6 +71,20 @@ function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) 
           <span className={item.type === 'donate' ? 'text-muted' : 'client-price'}>{itemLabel(item)}</span>
           <span className="text-muted">{isReserved ? 'awaiting handover' : (item.status === 'approved' ? 'public' : 'not public')}</span>
         </div>
+        {isReserved && item.buyer_name && (
+          <div className="client-contact-card client-contact-card--compact">
+            <div className="client-contact-card__header">
+              <User size={14} />
+              <strong>Buyer: {item.buyer_name}</strong>
+            </div>
+            {item.buyer_phone && (
+              <span className="client-contact-card__item"><Phone size={12} /> {item.buyer_phone}</span>
+            )}
+            {item.buyer_email && (
+              <span className="client-contact-card__item"><Mail size={12} /> {item.buyer_email}</span>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -113,6 +127,21 @@ function ViewItemModal({ item, onClose }) {
                 <strong>{item.status === 'approved' ? 'Public' : 'Not public'}</strong>
                 <span>Visibility</span>
               </div>
+            </div>
+          )}
+          {(item.status === 'reserved' || item.item_status === 'reserved') && item.buyer_name && (
+            <div className="client-contact-card">
+              <div className="client-contact-card__header">
+                <User size={16} />
+                <strong>Buyer Contact</strong>
+              </div>
+              <span className="client-contact-card__item"><User size={14} /> {item.buyer_name}</span>
+              {item.buyer_phone && (
+                <span className="client-contact-card__item"><Phone size={14} /> {item.buyer_phone}</span>
+              )}
+              {item.buyer_email && (
+                <span className="client-contact-card__item"><Mail size={14} /> {item.buyer_email}</span>
+              )}
             </div>
           )}
         </div>
@@ -262,6 +291,7 @@ function EditItemModal({ item, categories, onClose, onSaved }) {
 }
 
 export default function MyItems() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [data, setData] = useState({ items: [], page: 1, pages: 1 });
   const [categories, setCategories] = useState([]);
@@ -297,6 +327,22 @@ export default function MyItems() {
     document.addEventListener('click', closeMenu);
     return () => document.removeEventListener('click', closeMenu);
   }, []);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const itemId = searchParams.get('item');
+    if (itemId) {
+      // 350ms delay lets the route transition settle first, preventing layout jumps
+      const timer = setTimeout(() => {
+        api.get(`/client/items/${itemId}`)
+          .then((res) => setViewItem(res.data))
+          .catch(() => {});
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [location.search]);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -502,7 +548,15 @@ export default function MyItems() {
         </div>
       )}
 
-      <ViewItemModal item={viewItem} onClose={() => setViewItem(null)} />
+      <ViewItemModal
+        item={viewItem}
+        onClose={() => {
+          setViewItem(null);
+          if (new URLSearchParams(location.search).has('item')) {
+            navigate('/my-items', { replace: true });
+          }
+        }}
+      />
       <EditItemModal item={editItem} categories={categories} onClose={() => setEditItem(null)} onSaved={fetchItems} />
       <ConfirmDialog
         isOpen={!!deleteItem}
