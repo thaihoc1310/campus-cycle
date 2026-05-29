@@ -69,8 +69,13 @@ export default function ItemDetail() {
       </nav>
 
       <div className={`client-detail ${item.type === 'donate' ? 'client-detail--single' : ''}`}>
+        {/* Left column: Images */}
         <section>
           <ClientImageGallery images={item.images || []} title={item.title} fallbackIcon={<Package size={80} />} />
+        </section>
+
+        {/* Right column: Info + Action */}
+        <aside className="client-detail__info-panel">
           <div className="client-detail__content">
             <div className="client-card__meta">
               <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
@@ -78,6 +83,7 @@ export default function ItemDetail() {
             </div>
             <h1 className="client-detail__title">{item.title}</h1>
             <p>{item.description || 'No description provided.'}</p>
+
             {item.type === 'donate' && (
               <>
                 <div className="client-linked-info">
@@ -96,22 +102,21 @@ export default function ItemDetail() {
                 </div>
               </>
             )}
-          </div>
-        </section>
 
-        {item.type === 'sell' && (
-          <aside className="client-side-panel">
-            <div>
-              <p className="text-muted">Final Price (including fees)</p>
-              <h2>{preview ? money(preview.buyerTotal) : money(item.price)}</h2>
-            </div>
-            <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
-              {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
-            </Button>
-            {user?.status !== 'active' && <p className="text-muted">Admin activation is required before buying items.</p>}
-            <Link className="btn btn--secondary btn--lg" to="/marketplace">Back to Marketplace</Link>
-          </aside>
-        )}
+            {item.type === 'sell' && (
+              <div className="client-detail__buy-section">
+                <div>
+                  <p className="text-muted">Final Price (including fees)</p>
+                  <h2 className="client-detail__price">{preview ? money(preview.buyerTotal) : money(item.price)}</h2>
+                </div>
+                <Button variant="primary" size="lg" onClick={handleBuy} disabled={buying || user?.status !== 'active'}>
+                  {user?.status !== 'active' ? 'Awaiting Activation' : buying ? 'Creating...' : 'Buy'}
+                </Button>
+                {user?.status !== 'active' && <p className="text-muted">Admin activation is required before buying items.</p>}
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );

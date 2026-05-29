@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3,
   Bell,
@@ -16,6 +16,9 @@ import {
   User,
   WalletCards,
   XCircle,
+  Mail,
+  Phone,
+  Heart,
 } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -347,6 +350,50 @@ export default function ClientLayout() {
       <main className="client-main">
         <Outlet />
       </main>
+
+      <footer className="client-footer">
+        <div className="client-footer__container">
+          <div className="client-footer__brand-col">
+            <Link to="/" className="client-footer__brand">
+              <span className="client-footer__mark"><Recycle size={20} /></span>
+              <span>Campus Cycle</span>
+            </Link>
+            <p className="client-footer__tagline">
+              Empowering campus sustainability through circular trade, item recycling, and community-driven fundraising campaigns.
+            </p>
+            <span className="client-footer__copyright">
+              © {new Date().getFullYear()} Campus Cycle. All rights reserved.
+            </span>
+          </div>
+
+          <div className="client-footer__links-col">
+            <h4 className="client-footer__title">Explore</h4>
+            <ul className="client-footer__list">
+              <li><Link to="/marketplace">Marketplace</Link></li>
+              <li><Link to="/campaigns">Campaigns</Link></li>
+              <li><Link to="/profile">My Profile</Link></li>
+              <li><Link to="/my-items">My Items</Link></li>
+            </ul>
+          </div>
+
+          <div className="client-footer__contact-col">
+            <h4 className="client-footer__title">Support</h4>
+            <ul className="client-footer__list">
+              <li className="client-footer__contact-item">
+                <Mail size={16} />
+                <a href="mailto:support@campuscycle.edu">support@campuscycle.edu</a>
+              </li>
+              <li className="client-footer__contact-item">
+                <Phone size={16} />
+                <a href="tel:+1234567890">(+84) 123-456-789</a>
+              </li>
+              <li className="client-footer__made-with">
+                Made with <Heart size={14} className="heart-icon" /> for a greener campus.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

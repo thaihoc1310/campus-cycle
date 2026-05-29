@@ -177,8 +177,13 @@ export default function CampaignDetail() {
         </section>
       ) : (
         <div className="client-detail">
+          {/* Left column: Images */}
           <section>
             <ClientImageGallery images={campaign.images || []} title={campaign.title} fallbackIcon={<Megaphone size={80} />} />
+          </section>
+
+          {/* Right column: Info + Action */}
+          <aside className="client-detail__info-panel">
             <div className="client-detail__content">
               <div className="client-card__meta">
                 <span className="badge badge--approved">{campaign.type}</span>
@@ -194,33 +199,33 @@ export default function CampaignDetail() {
               </div>
               <h1 className="client-detail__title">{campaign.title}</h1>
               <p>{campaign.description || 'No description provided.'}</p>
-            </div>
-          </section>
 
-          <aside className="client-side-panel">
-            {campaign.type === 'fundraising' ? (
-              <>
-                <div>
-                  <p className="text-muted">Fundraising donation</p>
-                  <h2>{money(amount)}</h2>
-                </div>
-                <Input id="donate-amount" label="Amount" type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-                <Button variant="primary" size="lg" onClick={donateMoney} disabled={saving || user?.status !== 'active'}>
-                  {user?.status !== 'active' ? 'Awaiting Activation' : saving ? 'Creating...' : 'Donate Money'}
-                </Button>
-                {user?.status !== 'active' && <p className="text-muted">Admin activation is required before donating money.</p>}
-              </>
-            ) : (
-              <>
-                <div>
-                  <p className="text-muted">Item donation</p>
-                  <h2>Create a donate item</h2>
-                </div>
-                <Link className="btn btn--primary btn--lg" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
-                {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
-              </>
-            )}
-            <Link className="btn btn--secondary btn--lg" to="/campaigns">Back to Campaigns</Link>
+              {/* Action section */}
+              <div className="client-detail__buy-section">
+                {campaign.type === 'fundraising' ? (
+                  <>
+                    <div>
+                      <p className="text-muted">Fundraising donation</p>
+                      <h2 className="client-detail__price">{money(amount)}</h2>
+                    </div>
+                    <Input id="donate-amount" label="Amount" type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    <Button variant="primary" size="lg" onClick={donateMoney} disabled={saving || user?.status !== 'active'}>
+                      {user?.status !== 'active' ? 'Awaiting Activation' : saving ? 'Creating...' : 'Donate Money'}
+                    </Button>
+                    {user?.status !== 'active' && <p className="text-muted">Admin activation is required before donating money.</p>}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-muted">Item donation</p>
+                      <h2 className="client-detail__price">Donate an item</h2>
+                    </div>
+                    <Link className="btn btn--primary btn--lg" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
+                    {user?.status !== 'active' && <p className="text-muted">Admin activation is required before submitting campaign items.</p>}
+                  </>
+                )}
+              </div>
+            </div>
           </aside>
         </div>
       )}

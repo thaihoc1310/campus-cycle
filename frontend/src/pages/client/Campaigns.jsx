@@ -211,6 +211,14 @@ export default function Campaigns() {
   return (
     <div className="feed-page">
       <div className="feed-container">
+        {/* Campaigns Header */}
+        <div className="client-section__header" style={{ marginBottom: 'var(--space-6)' }}>
+          <div>
+            <h1 className="client-section__title">Campaigns</h1>
+            <p className="client-section__copy">Support active fundraising and donation drives across the campus community.</p>
+          </div>
+        </div>
+
         {/* Search & Filter Header */}
         <div className="feed-search-bar">
           <div className="feed-search-bar__input-wrap">

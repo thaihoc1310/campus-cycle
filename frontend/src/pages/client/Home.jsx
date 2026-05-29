@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package, Sparkles, Leaf, TrendingUp, Coins } from 'lucide-react';
 import api from '../../api/client';
 import { money, useMediaQuery } from './clientUtils.js';
 import './Client.css';
@@ -232,16 +232,74 @@ export default function Home() {
   return (
     <div className="feed-page">
       <div className="feed-container">
+
+        {/* Modern Premium Hero Banner */}
+        <section className="home-hero">
+          <div className="home-hero__content">
+            <h1 className="home-hero__title">
+              Empowering Circular <br />
+              <span className="gradient-text">Campus Economy</span>
+            </h1>
+            <p className="home-hero__subtitle">
+              Buy, sell, or donate items easily with campus members, and support student organizations through active community fundraising campaigns.
+            </p>
+            <div className="home-hero__actions">
+              <Link to="/marketplace" className="btn btn--primary btn--lg hero-btn">
+                <span>Browse Marketplace</span>
+                <ArrowRight size={18} />
+              </Link>
+              <Link to="/campaigns" className="btn btn--secondary btn--lg hero-btn hero-btn--secondary">
+                <span>Explore Campaigns</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="home-hero__stats">
+            <div className="stat-pill">
+              <div className="stat-pill__icon stat-pill__icon--green"><Leaf size={18} /></div>
+              <div>
+                <strong>Eco-Friendly</strong>
+                <span>100% Circular</span>
+              </div>
+            </div>
+            <div className="stat-pill">
+              <div className="stat-pill__icon stat-pill__icon--blue"><TrendingUp size={18} /></div>
+              <div>
+                <strong>Zero Waste</strong>
+                <span>Trade & Recycle</span>
+              </div>
+            </div>
+            <div className="stat-pill">
+              <div className="stat-pill__icon stat-pill__icon--purple"><Coins size={18} /></div>
+              <div>
+                <strong>Fundraising</strong>
+                <span>Direct Impact</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Community Feed Title */}
+        <div className="feed-section-header">
+          <div>
+            <h2 className="feed-section-header__title">Community Activity Feed</h2>
+            <p className="feed-section-header__subtitle">Explore the latest recycled listings and fundraising campaigns on campus.</p>
+          </div>
+        </div>
+
         <div className="feed-list">
           {isMobile ? (
             feed.map((entry, index) => renderCard(entry, index))
           ) : (
             <>
               <div className="feed-column">
-                {feed.filter((_, idx) => idx % 2 === 0).map((entry, idx) => renderCard(entry, idx * 2))}
+                {feed.filter((_, idx) => idx % 3 === 0).map((entry, idx) => renderCard(entry, idx * 3))}
               </div>
               <div className="feed-column">
-                {feed.filter((_, idx) => idx % 2 !== 0).map((entry, idx) => renderCard(entry, idx * 2 + 1))}
+                {feed.filter((_, idx) => idx % 3 === 1).map((entry, idx) => renderCard(entry, idx * 3 + 1))}
+              </div>
+              <div className="feed-column">
+                {feed.filter((_, idx) => idx % 3 === 2).map((entry, idx) => renderCard(entry, idx * 3 + 2))}
               </div>
             </>
           )}

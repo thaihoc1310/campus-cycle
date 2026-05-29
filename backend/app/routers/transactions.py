@@ -17,14 +17,18 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
 def _txn_to_response(t: Transaction) -> TransactionResponse:
+    to_name = t.to_user.name if t.to_user else None
+    if not to_name and t.transaction_type == "campaign_donation" and t.campaign and t.campaign.organization:
+        to_name = t.campaign.organization.name
     return TransactionResponse(
         id=t.id, transaction_type=t.transaction_type, item_id=t.item_id,
         from_user_id=t.from_user_id, to_user_id=t.to_user_id,
         campaign_id=t.campaign_id, amount=t.amount, platform_fee=t.platform_fee,
         status=t.status,
         from_user_name=t.from_user.name if t.from_user else None,
-        to_user_name=t.to_user.name if t.to_user else None,
+        to_user_name=to_name,
         item_title=t.item.title if t.item else None,
+        campaign_title=t.campaign.title if t.campaign else None,
         created_at=t.created_at, updated_at=t.updated_at,
     )
 
