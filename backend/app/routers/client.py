@@ -13,10 +13,12 @@ from app.database import get_db
 from app.models.campaign import Campaign, CampaignImage, CampaignItem
 from app.models.category import Category
 from app.models.item import Item, ItemImage
+from app.models.organization import Organization
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.campaign import CampaignImageResponse, CampaignResponse
 from app.schemas.category import CategoryResponse
+from app.schemas.organization import OrganizationResponse
 from app.schemas.common import PaginatedResponse
 from app.schemas.item import ItemImageResponse, ItemResponse
 from app.schemas.transaction import TransactionResponse
@@ -721,6 +723,7 @@ def list_campaigns(
     page_size: int = Query(12, ge=1, le=60),
     search: str = Query(""),
     campaign_type: str = Query(""),
+    organization_id: str = Query(""),
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
@@ -729,6 +732,8 @@ def list_campaigns(
         query = query.filter(or_(Campaign.title.ilike(f"%{search}%"), Campaign.description.ilike(f"%{search}%")))
     if campaign_type:
         query = query.filter(Campaign.type == campaign_type)
+    if organization_id:
+        query = query.filter(Campaign.organization_id == organization_id)
 
     total = query.count()
     campaigns = query.order_by(Campaign.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -1174,3 +1179,15 @@ def get_unread_count(
     notifs = _build_notifications(current_user, db, after_dt)
     unread = sum(1 for n in notifs if not n.is_read)
     return {"unread_count": unread}
+
+
+@router.get("/organizations/{org_id}", response_model=OrganizationResponse)
+def get_public_organization(
+    org_id: UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return OrganizationResponse.model_validate(org)

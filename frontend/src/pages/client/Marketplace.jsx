@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, Search, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, PlusCircle, Search, X } from 'lucide-react';
 import api from '../../api/client';
 import { itemFeePreview, money, useMediaQuery } from './clientUtils.js';
 import './Client.css';
@@ -211,6 +211,17 @@ export default function Marketplace() {
   return (
     <div className="feed-page">
       <div className="feed-container">
+        {/* Marketplace Header */}
+        <div className="client-section__header" style={{ marginBottom: 'var(--space-6)' }}>
+          <div>
+            <h1 className="client-section__title">Marketplace</h1>
+            <p className="client-section__copy">Find used items listed by other campus members.</p>
+          </div>
+          <Link className="btn btn--primary btn--md" to="/sell-item">
+            <PlusCircle size={16} /> Sell Item
+          </Link>
+        </div>
+
         {/* Search & Filter Header */}
         <div className="feed-search-bar">
           <div className="feed-search-bar__input-wrap">

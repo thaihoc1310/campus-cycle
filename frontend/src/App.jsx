@@ -16,6 +16,7 @@ import Payment from './pages/client/Payment.jsx';
 import ClientCampaigns from './pages/client/Campaigns.jsx';
 import CampaignDetail from './pages/client/CampaignDetail.jsx';
 import Profile from './pages/client/Profile.jsx';
+import OrgDetail from './pages/client/OrgDetail.jsx';
 import OrgDashboard from './pages/org/OrgDashboard.jsx';
 import OrgCampaigns from './pages/org/OrgCampaigns.jsx';
 import OrgCampaignDetail from './pages/org/OrgCampaignDetail.jsx';
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
         <Route path="campaigns/:campaignId/donate-item" element={<DonateItem />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="org-public/:orgId" element={<OrgDetail />} />
         <Route path="org/:orgId" element={<OrgDashboard />} />
         <Route path="org/:orgId/campaigns" element={<OrgCampaigns />} />
         <Route path="org/:orgId/campaigns/:campaignId" element={<OrgCampaignDetail />} />
