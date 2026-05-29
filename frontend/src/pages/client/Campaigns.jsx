@@ -82,12 +82,14 @@ function CampaignFeedCard({ campaign }) {
       </Link>
 
       <div className="feed-card__body">
-        <div className="feed-card__org-line">
+        <Link to={campaign.organization_id ? `/org-public/${campaign.organization_id}` : '#'} className="feed-card__org-line" style={{ textDecoration: 'none', color: 'inherit', pointerEvents: campaign.organization_id ? 'auto' : 'none' }}>
           <div className="feed-card__avatar feed-card__avatar--campaign">
             <Megaphone size={12} />
           </div>
-          <span>{campaign.organization_name || 'Campus Organization'}</span>
-        </div>
+          <span style={{ transition: 'color var(--transition-fast)' }} onMouseEnter={(e) => { if (campaign.organization_id) e.target.style.color = 'var(--primary)'; }} onMouseLeave={(e) => { if (campaign.organization_id) e.target.style.color = 'inherit'; }}>
+            {campaign.organization_name || 'Campus Organization'}
+          </span>
+        </Link>
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{campaign.title}</h3>
         </Link>

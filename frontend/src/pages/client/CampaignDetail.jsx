@@ -182,7 +182,15 @@ export default function CampaignDetail() {
             <div className="client-detail__content">
               <div className="client-card__meta">
                 <span className="badge badge--approved">{campaign.type}</span>
-                <span>{campaign.organization_name || 'Campus'}</span>
+                {campaign.organization_id ? (
+                  <Link to={`/org-public/${campaign.organization_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <span style={{ transition: 'color var(--transition-fast)', fontWeight: 600 }} onMouseEnter={(e) => e.target.style.color = 'var(--primary)'} onMouseLeave={(e) => e.target.style.color = 'inherit'}>
+                      {campaign.organization_name || 'Campus'}
+                    </span>
+                  </Link>
+                ) : (
+                  <span>{campaign.organization_name || 'Campus'}</span>
+                )}
               </div>
               <h1 className="client-detail__title">{campaign.title}</h1>
               <p>{campaign.description || 'No description provided.'}</p>
