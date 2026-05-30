@@ -93,10 +93,8 @@ function CampaignFeedCard({ campaign }) {
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{campaign.title}</h3>
         </Link>
-        {campaign.description && (
-          <p className="feed-card__desc">{campaign.description}</p>
-        )}
-        <div className="feed-card__footer">
+        
+        <div className="feed-card__footer" style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)' }}>
           <div className="feed-card__chips">
             <span className="badge badge--approved">{campaign.type}</span>
           </div>
@@ -171,7 +169,6 @@ export default function Campaigns() {
     fetchCampaigns(page, filters, page > 1);
   }, [page, filters, fetchCampaigns]);
 
-  // Infinite scroll
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(
@@ -270,25 +267,19 @@ export default function Campaigns() {
               <CampaignFeedCard key={campaign.id} campaign={campaign} />
             ))
           ) : (
-            <>
-              <div className="feed-column">
-                {campaigns.filter((_, idx) => idx % 2 === 0).map((campaign) => (
-                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
-                ))}
-              </div>
-              <div className="feed-column">
-                {campaigns.filter((_, idx) => idx % 2 !== 0).map((campaign) => (
-                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
-                ))}
-              </div>
-            </>
+            <div className="feed-grid-3">
+              {campaigns.map((campaign) => (
+                <CampaignFeedCard key={campaign.id} campaign={campaign} />
+              ))}
+            </div>
           )}
 
           {loading && (
-            <>
+            <div className="feed-grid-3">
               <FeedSkeleton />
               <FeedSkeleton />
-            </>
+              <FeedSkeleton />
+            </div>
           )}
 
           {!loading && campaigns.length === 0 && (
@@ -307,7 +298,7 @@ export default function Campaigns() {
 
           {!hasMore && campaigns.length > 0 && (
             <div className="feed-end">
-              <span>That's all the campaigns! 🎯</span>
+              <span>That's all the campaigns!</span>
             </div>
           )}
         </div>

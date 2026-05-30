@@ -87,10 +87,8 @@ function MarketplaceItemCard({ item }) {
         <Link to={`/items/${item.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{item.title}</h3>
         </Link>
-        {item.description && (
-          <p className="feed-card__desc">{item.description}</p>
-        )}
-        <div className="feed-card__footer">
+        
+        <div className="feed-card__footer" style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)' }}>
           <div className="feed-card__chips">
             <span className="badge badge--active">sell</span>
             {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
@@ -171,7 +169,6 @@ export default function Marketplace() {
     fetchItems(page, filters, page > 1);
   }, [page, filters, fetchItems]);
 
-  // Infinite scroll
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(
@@ -272,25 +269,20 @@ export default function Marketplace() {
               <MarketplaceItemCard key={item.id} item={item} />
             ))
           ) : (
-            <>
-              <div className="feed-column">
-                {items.filter((_, idx) => idx % 2 === 0).map((item) => (
-                  <MarketplaceItemCard key={item.id} item={item} />
-                ))}
-              </div>
-              <div className="feed-column">
-                {items.filter((_, idx) => idx % 2 !== 0).map((item) => (
-                  <MarketplaceItemCard key={item.id} item={item} />
-                ))}
-              </div>
-            </>
+            <div className="feed-grid-4">
+              {items.map((item) => (
+                <MarketplaceItemCard key={item.id} item={item} />
+              ))}
+            </div>
           )}
 
           {loading && (
-            <>
+            <div className="feed-grid-4">
               <FeedSkeleton />
               <FeedSkeleton />
-            </>
+              <FeedSkeleton />
+              <FeedSkeleton />
+            </div>
           )}
 
           {!loading && items.length === 0 && (
@@ -309,7 +301,7 @@ export default function Marketplace() {
 
           {!hasMore && items.length > 0 && (
             <div className="feed-end">
-              <span>That's all the items! 📦</span>
+              <span>That's all the items! </span>
             </div>
           )}
         </div>

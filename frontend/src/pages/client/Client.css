@@ -41,6 +41,40 @@
   margin: 0 auto;
 }
 
+.feed-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
+  width: 100%;
+  align-items: start;
+}
+
+.feed-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  width: 100%;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .feed-grid-4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .feed-grid-4, .feed-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .feed-grid-4, .feed-grid-3 {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
 /* --- Premium Home Hero --- */
 /* --- Premium Home Hero --- */
 .home-hero {

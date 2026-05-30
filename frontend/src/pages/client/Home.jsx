@@ -84,19 +84,18 @@ function FeedItemCard({ item }) {
       </Link>
 
       <div className="feed-card__body">
-        {item.type === 'sell' && (
-          <span className="feed-card__price-lg">{money(item.price)}</span>
-        )}
-        {item.type === 'donate' && (
-          <span className="feed-card__tag feed-card__tag--donate">Free</span>
-        )}
-        <Link to={`/items/${item.id}`} className="feed-card__title-link">
-          <h3 className="feed-card__title">{item.title}</h3>
-        </Link>
-        {item.description && (
-          <p className="feed-card__desc">{item.description}</p>
-        )}
-        <div className="feed-card__footer">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
+          <Link to={`/items/${item.id}`} className="feed-card__title-link" style={{ flex: 1 }}>
+            <h3 className="feed-card__title">{item.title}</h3>
+          </Link>
+          {item.type === 'sell' ? (
+            <span className="feed-card__price-lg" style={{ marginBottom: 0 }}>{money(item.price)}</span>
+          ) : (
+            <span className="feed-card__tag feed-card__tag--donate">Free</span>
+          )}
+        </div>
+        
+        <div className="feed-card__footer" style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)' }}>
           <div className="feed-card__chips">
             <span className={`badge badge--${item.type === 'donate' ? 'approved' : 'active'}`}>{item.type}</span>
             {item.category_name && <span className="feed-card__chip">{item.category_name}</span>}
@@ -132,10 +131,8 @@ function FeedCampaignCard({ campaign }) {
         <Link to={`/campaigns/${campaign.id}`} className="feed-card__title-link">
           <h3 className="feed-card__title">{campaign.title}</h3>
         </Link>
-        {campaign.description && (
-          <p className="feed-card__desc">{campaign.description}</p>
-        )}
-        <div className="feed-card__footer">
+        
+        <div className="feed-card__footer" style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)' }}>
           <div className="feed-card__chips">
             <span className="badge badge--approved">{campaign.type}</span>
           </div>
@@ -202,7 +199,6 @@ export default function Home() {
     fetchFeed(page);
   }, [page, fetchFeed]);
 
-  // Infinite scroll observer
   useEffect(() => {
     if (!loaderRef.current) return;
     const observer = new IntersectionObserver(
@@ -291,24 +287,17 @@ export default function Home() {
           {isMobile ? (
             feed.map((entry, index) => renderCard(entry, index))
           ) : (
-            <>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 0).map((entry, idx) => renderCard(entry, idx * 3))}
-              </div>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 1).map((entry, idx) => renderCard(entry, idx * 3 + 1))}
-              </div>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 2).map((entry, idx) => renderCard(entry, idx * 3 + 2))}
-              </div>
-            </>
+            <div className="feed-grid-3">
+              {feed.map((entry, index) => renderCard(entry, index))}
+            </div>
           )}
 
           {loading && (
-            <>
+            <div className="feed-grid-3">
               <FeedSkeleton />
               <FeedSkeleton />
-            </>
+              <FeedSkeleton />
+            </div>
           )}
 
           {!loading && feed.length === 0 && (
@@ -328,7 +317,7 @@ export default function Home() {
 
           {!hasMore && feed.length > 0 && (
             <div className="feed-end">
-              <span>You're all caught up! 🎉</span>
+              <span>You're all caught up!</span>
             </div>
           )}
         </div>
