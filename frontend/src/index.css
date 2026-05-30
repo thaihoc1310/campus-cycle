@@ -148,9 +148,13 @@ input, select, textarea, button {
   background: #DBEAFE;
   color: #1E40AF;
 }
-.badge--reserved, .badge--paid {
+.badge--reserved, .badge--paid, .badge--handover {
   background: #E0E7FF;
   color: #3730A3;
+}
+.badge--awaiting_org_review {
+  background: #FEF3C7;
+  color: #92400E;
 }
 .badge--member {
   background: var(--muted);
@@ -185,4 +189,32 @@ input, select, textarea, button {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* --- Recharts Tooltip Custom Styles --- */
+.recharts-tooltip-wrapper {
+  color: #ffffff !important;
+}
+
+.recharts-default-tooltip {
+  background-color: #1f2937 !important; /* Dark slate background */
+  border: 1px solid #374151 !important; /* Slate border */
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3) !important;
+}
+
+.recharts-tooltip-label {
+  color: #f3f4f6 !important; /* Light gray for label */
+  font-weight: 600 !important;
+}
+
+.recharts-tooltip-item {
+  color: #3b82f6 !important; /* Blue or suitable accent color for items */
+}
+
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-separator,
+.recharts-tooltip-item-value {
+  color: #ffffff !important; /* Force text inside list items to be white */
 }

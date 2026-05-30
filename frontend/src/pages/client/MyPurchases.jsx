@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Mail, Package, Phone, ShoppingBag, WalletCards, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Mail, Package, Phone, Search, ShoppingBag, WalletCards, X, XCircle } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button.jsx';
 import ConfirmDialog from '../../components/ui/ConfirmDialog.jsx';
@@ -105,19 +105,41 @@ export default function MyPurchases() {
   const [data, setData] = useState({ items: [], page: 1, pages: 1 });
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [actingId, setActingId] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
   const [previewTx, setPreviewTx] = useState(null);
+  const searchTimer = useRef(null);
 
   const fetchPurchases = useCallback(() => {
     const params = { page, page_size: 20 };
     if (status) params.status = status;
+    if (debouncedSearch) params.search = debouncedSearch;
     api.get('/client/transactions/my-purchases', { params })
       .then((res) => setData(res.data))
       .catch(() => {});
-  }, [page, status]);
+  }, [page, status, debouncedSearch]);
 
   useEffect(() => { fetchPurchases(); }, [fetchPurchases]);
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  const handleSearchChange = (event) => {
+    const value = event.target.value;
+    setSearchQuery(value);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(value.trim());
+    }, 300);
+  };
+
+  const clearSearch = () => {
+    clearTimeout(searchTimer.current);
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setPage(1);
+  };
 
   const handleConfirmReceipt = async (transactionId) => {
     setActingId(transactionId);
@@ -157,6 +179,26 @@ export default function MyPurchases() {
         <Link className="btn btn--secondary btn--md" to="/marketplace">
           <ShoppingBag size={16} /> Browse marketplace
         </Link>
+      </div>
+
+      <div className="feed-search-bar" style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div className="feed-search-bar__input-wrap">
+          <Search size={18} className="feed-search-bar__icon" />
+          <input
+            id="my-purchases-search"
+            type="text"
+            placeholder="Search purchases or campaign donations..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="feed-search-bar__input"
+          />
+        </div>
+        {(searchQuery || debouncedSearch) && (
+          <button type="button" className="feed-search-bar__clear" onClick={clearSearch}>
+            <X size={14} />
+            <span>Clear</span>
+          </button>
+        )}
       </div>
 
       <div className="client-purchases__filters">
@@ -276,8 +318,8 @@ export default function MyPurchases() {
       ) : (
         <div className="client-empty">
           <span className="client-empty__icon"><ShoppingBag size={28} /></span>
-          <span className="client-empty__title">No purchases yet</span>
-          <span className="client-empty__copy">Items and donations you start will show up here.</span>
+          <span className="client-empty__title">{debouncedSearch ? 'No matching purchases' : 'No purchases yet'}</span>
+          <span className="client-empty__copy">{debouncedSearch ? 'Try another search term or clear the search.' : 'Items and donations you start will show up here.'}</span>
           <Link className="btn btn--primary btn--md" to="/marketplace">Browse marketplace</Link>
         </div>
       )}

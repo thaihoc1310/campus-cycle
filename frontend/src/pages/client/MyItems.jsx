@@ -17,9 +17,30 @@ function itemLabel(item) {
   return money(item.price);
 }
 
+const ITEM_STATUS_LABELS = {
+  awaiting_org_review: 'Awaiting organization review',
+  handover: 'Handover',
+};
+
+function itemStatusLabel(status) {
+  return ITEM_STATUS_LABELS[status] || status;
+}
+
+function itemStatusCopy(item) {
+  if (item.type === 'sell') {
+    if (item.status === 'reserved') return 'awaiting handover';
+    return item.status === 'approved' ? 'public' : 'not public';
+  }
+  if (item.status === 'pending') return 'awaiting campus review';
+  if (item.status === 'awaiting_org_review') return 'awaiting organization review';
+  if (item.status === 'handover') return 'arrange handover with organization';
+  if (item.status === 'donated') return 'received by organization';
+  return item.status;
+}
+
 function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) {
   const canEdit = item.status === 'pending';
-  const canDelete = item.status !== 'reserved' && item.status !== 'sold';
+  const canDelete = !['reserved', 'sold', 'handover', 'donated'].includes(item.status);
   const isReserved = item.status === 'reserved';
 
   return (
@@ -62,14 +83,14 @@ function MyItemCard({ item, menuOpen, onToggleMenu, onEdit, onDelete, onView }) 
       </div>
       <div className="client-card__body">
         <div className="client-card__meta">
-          <span className={`badge badge--${item.status}`}>{item.status}</span>
+          <span className={`badge badge--${item.status}`}>{itemStatusLabel(item.status)}</span>
           <span>{item.type}</span>
           {item.campaign_name && <span>{item.campaign_name}</span>}
         </div>
         <h2 className="client-card__title">{item.title}</h2>
         <div className="client-card__footer">
           <span className={item.type === 'donate' ? 'text-muted' : 'client-price'}>{itemLabel(item)}</span>
-          <span className="text-muted">{isReserved ? 'awaiting handover' : (item.status === 'approved' ? 'public' : 'not public')}</span>
+          <span className="text-muted">{itemStatusCopy(item)}</span>
         </div>
         {isReserved && item.buyer_name && (
           <div className="client-contact-card client-contact-card--compact">
@@ -99,7 +120,7 @@ function ViewItemModal({ item, onClose }) {
         <ClientImageGallery images={item.images || []} title={item.title} fallbackIcon={<Package size={72} />} variant="strip" />
         <div className="client-my-item-view__body">
           <div className="client-card__meta">
-            <span className={`badge badge--${item.status}`}>{item.status}</span>
+            <span className={`badge badge--${item.status}`}>{itemStatusLabel(item.status)}</span>
             <span>{item.type}</span>
             <span>{item.category_name || 'Uncategorized'}</span>
           </div>
@@ -507,8 +528,11 @@ export default function MyItems() {
               <option value="">All statuses</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
+              <option value="awaiting_org_review">Awaiting Organization Review</option>
+              <option value="handover">Handover</option>
               <option value="reserved">Reserved</option>
               <option value="sold">Sold</option>
+              <option value="donated">Donated</option>
               <option value="rejected">Rejected</option>
             </select>
           </div>

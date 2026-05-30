@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Filter, Megaphone, Search, X } from 'lucide-react';
+import { ArrowRight, Filter, Megaphone, Search, X } from 'lucide-react';
 import api from '../../api/client';
-import { useMediaQuery } from './clientUtils.js';
+import CampaignMediaGallery from './CampaignMediaGallery.jsx';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -18,67 +18,11 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function FeedImageCarousel({ images, title, fallback }) {
-  const [current, setCurrent] = useState(0);
-  const list = images?.length ? images : [];
-
-  if (!list.length) {
-    return (
-      <div className="feed-card__media feed-card__media--empty">
-        {fallback}
-      </div>
-    );
-  }
-
-  if (list.length === 1) {
-    return (
-      <div className="feed-card__media">
-        <img src={list[0].image_path || list[0]} alt={title} />
-      </div>
-    );
-  }
-
-  const go = (dir) => {
-    const next = dir === 'next'
-      ? Math.min(current + 1, list.length - 1)
-      : Math.max(current - 1, 0);
-    setCurrent(next);
-  };
-
-  return (
-    <div className="feed-card__media feed-card__media--carousel">
-      <div
-        className="feed-card__carousel-track"
-        style={{ transform: `translateX(-${current * 100}%)` }}
-      >
-        {list.map((img, i) => (
-          <img key={i} src={img.image_path || img} alt={`${title} ${i + 1}`} />
-        ))}
-      </div>
-      {current > 0 && (
-        <button className="feed-card__carousel-btn feed-card__carousel-btn--prev" onClick={(e) => { e.preventDefault(); go('prev'); }}>
-          <ChevronLeft size={20} />
-        </button>
-      )}
-      {current < list.length - 1 && (
-        <button className="feed-card__carousel-btn feed-card__carousel-btn--next" onClick={(e) => { e.preventDefault(); go('next'); }}>
-          <ChevronRight size={20} />
-        </button>
-      )}
-      <div className="feed-card__carousel-dots">
-        {list.map((_, i) => (
-          <span key={i} className={`feed-card__carousel-dot ${i === current ? 'feed-card__carousel-dot--active' : ''}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function CampaignFeedCard({ campaign }) {
   return (
     <article className="feed-card feed-card--campaign">
       <Link to={`/campaigns/${campaign.id}`} className="feed-card__link">
-        <FeedImageCarousel images={campaign.images || []} title={campaign.title} fallback={<Megaphone size={56} />} />
+        <CampaignMediaGallery images={campaign.images || []} title={campaign.title} />
       </Link>
 
       <div className="feed-card__body">
@@ -134,7 +78,6 @@ function FeedSkeleton() {
 }
 
 export default function Campaigns() {
-  const isMobile = useMediaQuery('(max-width: 900px)');
   const [campaigns, setCampaigns] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -264,31 +207,13 @@ export default function Campaigns() {
         )}
 
         {/* Feed List */}
-        <div className="feed-list">
-          {isMobile ? (
-            campaigns.map((campaign) => (
-              <CampaignFeedCard key={campaign.id} campaign={campaign} />
-            ))
-          ) : (
-            <>
-              <div className="feed-column">
-                {campaigns.filter((_, idx) => idx % 2 === 0).map((campaign) => (
-                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
-                ))}
-              </div>
-              <div className="feed-column">
-                {campaigns.filter((_, idx) => idx % 2 !== 0).map((campaign) => (
-                  <CampaignFeedCard key={campaign.id} campaign={campaign} />
-                ))}
-              </div>
-            </>
-          )}
+        <div className="feed-list feed-list--campaigns">
+          {campaigns.map((campaign) => (
+            <CampaignFeedCard key={campaign.id} campaign={campaign} />
+          ))}
 
           {loading && (
-            <>
-              <FeedSkeleton />
-              <FeedSkeleton />
-            </>
+            <FeedSkeleton />
           )}
 
           {!loading && campaigns.length === 0 && (

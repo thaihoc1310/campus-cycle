@@ -1,4 +1,5 @@
 import math
+import random
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
@@ -203,11 +204,15 @@ def _effective_item_status(item: Item) -> str:
     campaign_items = list(item.campaign_items or [])
     if item.status == "rejected" or any(entry.status == "rejected" for entry in campaign_items):
         return "rejected"
+    if item.status == "donated" or any(entry.status == "received" for entry in campaign_items):
+        return "donated"
+    if not campaign_items:
+        return item.status
     if item.status != "approved":
         return item.status
-    if any(entry.status == "approved" for entry in campaign_items):
-        return "approved"
-    return "pending"
+    if any(entry.status == "handover" for entry in campaign_items):
+        return "handover"
+    return "awaiting_org_review"
 
 
 def _public_item_filter():
@@ -348,6 +353,8 @@ def _transaction_to_response(transaction: Transaction, db: Session | None = None
 
 class FeedEntry(BaseModel):
     feed_type: str  # 'item' or 'campaign'
+    row_key: str
+    row_size: int
     item: ClientItemResponse | None = None
     campaign: ClientCampaignResponse | None = None
 
@@ -359,24 +366,70 @@ def list_feed(
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    items_q = db.query(Item).filter(_public_item_filter()).all()
-    campaigns_q = db.query(Campaign).filter(Campaign.status == "approved").all()
+    items_q = db.query(Item).filter(_public_item_filter()).order_by(Item.created_at.desc()).all()
+    campaigns_q = (
+        db.query(Campaign)
+        .filter(Campaign.status == "approved")
+        .order_by(Campaign.created_at.desc())
+        .limit(3)
+        .all()
+    )
 
-    entries: list[dict] = []
+    item_entries = []
     for item in items_q:
-        entries.append({
+        item_entries.append({
             "feed_type": "item",
             "created_at": item.created_at,
             "data": _item_to_response(item, db),
         })
+    campaign_entries = []
     for campaign in campaigns_q:
-        entries.append({
+        campaign_entries.append({
             "feed_type": "campaign",
             "created_at": campaign.created_at,
             "data": _campaign_to_response(campaign, db),
         })
 
-    entries.sort(key=lambda e: e["created_at"], reverse=True)
+    # Use a stable pseudo-random layout so pagination remains consistent while
+    # the feed still feels varied whenever the available content changes.
+    layout_seed = "|".join(str(entry["data"].id) for entry in item_entries + campaign_entries)
+    randomizer = random.Random(layout_seed)
+    randomizer.shuffle(item_entries)
+    randomizer.shuffle(campaign_entries)
+
+    entries: list[dict] = []
+    item_index = 0
+    campaign_index = 0
+    row_index = 0
+    item_rows_until_campaign = 2
+    while item_index < len(item_entries) or campaign_index < len(campaign_entries):
+        if item_index < len(item_entries):
+            remaining = len(item_entries) - item_index
+            if row_index == 0:
+                row_size = min(2, remaining)
+            elif row_index == 1:
+                row_size = min(3, remaining)
+            else:
+                row_size = remaining if remaining <= 3 else 2 if remaining == 4 else randomizer.choice([2, 3])
+            row_key = f"items-{row_index}"
+            for entry in item_entries[item_index : item_index + row_size]:
+                entries.append({**entry, "row_key": row_key, "row_size": row_size})
+            item_index += row_size
+            row_index += 1
+            item_rows_until_campaign -= 1
+
+        if campaign_index < len(campaign_entries) and (
+            item_index >= len(item_entries) or item_rows_until_campaign <= 0
+        ):
+            entries.append({
+                **campaign_entries[campaign_index],
+                "row_key": f"campaign-{row_index}",
+                "row_size": 1,
+            })
+            campaign_index += 1
+            row_index += 1
+            item_rows_until_campaign = randomizer.choice([1, 1, 2])
+
     total = len(entries)
     start = (page - 1) * page_size
     page_entries = entries[start : start + page_size]
@@ -384,9 +437,19 @@ def list_feed(
     results = []
     for entry in page_entries:
         if entry["feed_type"] == "item":
-            results.append(FeedEntry(feed_type="item", item=entry["data"]))
+            results.append(FeedEntry(
+                feed_type="item",
+                row_key=entry["row_key"],
+                row_size=entry["row_size"],
+                item=entry["data"],
+            ))
         else:
-            results.append(FeedEntry(feed_type="campaign", campaign=entry["data"]))
+            results.append(FeedEntry(
+                feed_type="campaign",
+                row_key=entry["row_key"],
+                row_size=entry["row_size"],
+                campaign=entry["data"],
+            ))
 
     return {
         "items": [r.model_dump() for r in results],
@@ -451,7 +514,28 @@ def list_my_items(
     if category_id:
         query = query.filter(Item.category_id == category_id)
     if status:
-        query = query.filter(Item.status == status)
+        if status == "awaiting_org_review":
+            query = (
+                query
+                .join(CampaignItem, CampaignItem.item_id == Item.id)
+                .filter(Item.type == "donate", Item.status == "approved", CampaignItem.status == "pending")
+            )
+        elif status == "handover":
+            query = (
+                query
+                .join(CampaignItem, CampaignItem.item_id == Item.id)
+                .filter(Item.type == "donate", Item.status == "approved", CampaignItem.status == "handover")
+            )
+        elif status == "rejected":
+            query = (
+                query
+                .outerjoin(CampaignItem, CampaignItem.item_id == Item.id)
+                .filter(or_(Item.status == "rejected", CampaignItem.status == "rejected"))
+            )
+        elif status == "approved":
+            query = query.filter(Item.type == "sell", Item.status == "approved")
+        else:
+            query = query.filter(Item.status == status)
 
     total = query.count()
     items = query.order_by(Item.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -536,8 +620,10 @@ def delete_my_item(
     item = db.query(Item).filter(Item.id == item_id, Item.user_id == current_user.id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    if item.status in {"reserved", "sold"}:
-        raise HTTPException(status_code=400, detail="Cannot delete an item with an active or completed sale")
+    if item.status in {"reserved", "sold", "donated"}:
+        raise HTTPException(status_code=400, detail="Cannot delete an item with an active or completed handover")
+    if any(entry.status in {"handover", "received"} for entry in item.campaign_items):
+        raise HTTPException(status_code=400, detail="Cannot delete a donation item with an active or completed handover")
 
     for image in item.images:
         delete_upload(image.image_path)
@@ -758,6 +844,108 @@ def get_campaign(
     return _campaign_to_response(campaign, db)
 
 
+class CampaignTopContributor(BaseModel):
+    name: str
+    amount: Decimal | None = None
+    item_count: int | None = None
+
+
+class CampaignStatsResponse(BaseModel):
+    campaign_type: str
+    total_donors: int = 0
+    total_items: int = 0
+    total_raised: Decimal = Decimal("0")
+    top_contributors: list[CampaignTopContributor] = []
+
+
+@router.get("/campaigns/{campaign_id}/stats", response_model=CampaignStatsResponse)
+def get_campaign_stats(
+    campaign_id: str,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id, Campaign.status == "approved").first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    if campaign.type == "fundraising":
+        # Completed donations only
+        donations = (
+            db.query(Transaction)
+            .filter(
+                Transaction.campaign_id == campaign.id,
+                Transaction.transaction_type == "campaign_donation",
+                Transaction.status == "completed",
+            )
+            .all()
+        )
+        total_raised = sum(d.amount for d in donations) if donations else Decimal("0")
+        total_donors = len(set(d.from_user_id for d in donations if d.from_user_id))
+
+        # Top contributors: aggregate by user
+        user_totals: dict[UUID, tuple[str, Decimal]] = {}
+        for d in donations:
+            if not d.from_user_id:
+                continue
+            uid = d.from_user_id
+            name = d.from_user.name if d.from_user else "Anonymous"
+            if uid in user_totals:
+                user_totals[uid] = (user_totals[uid][0], user_totals[uid][1] + d.amount)
+            else:
+                user_totals[uid] = (name, d.amount)
+
+        top_contributors = sorted(user_totals.values(), key=lambda x: x[1], reverse=True)[:5]
+
+        return CampaignStatsResponse(
+            campaign_type="fundraising",
+            total_donors=total_donors,
+            total_raised=total_raised,
+            top_contributors=[
+                CampaignTopContributor(name=name, amount=amount)
+                for name, amount in top_contributors
+            ],
+        )
+    else:
+        # Donation campaign — count physically received items only
+        donated_items = (
+            db.query(CampaignItem)
+            .join(Item, CampaignItem.item_id == Item.id)
+            .filter(
+                CampaignItem.campaign_id == campaign.id,
+                CampaignItem.status == "received",
+                Item.status == "donated",
+                Item.type == "donate",
+            )
+            .all()
+        )
+        total_items = len(donated_items)
+        total_donors = len(set(item.item.user_id for item in donated_items if item.item))
+
+        # Top donors by item count
+        user_counts: dict[UUID, tuple[str, int]] = {}
+        for ci in donated_items:
+            if not ci.item or not ci.item.user_id:
+                continue
+            uid = ci.item.user_id
+            name = ci.item.owner.name if ci.item.owner else "Anonymous"
+            if uid in user_counts:
+                user_counts[uid] = (user_counts[uid][0], user_counts[uid][1] + 1)
+            else:
+                user_counts[uid] = (name, 1)
+
+        top_contributors = sorted(user_counts.values(), key=lambda x: x[1], reverse=True)[:5]
+
+        return CampaignStatsResponse(
+            campaign_type="donation",
+            total_donors=total_donors,
+            total_items=total_items,
+            top_contributors=[
+                CampaignTopContributor(name=name, item_count=count)
+                for name, count in top_contributors
+            ],
+        )
+
+
 @router.get("/campaigns/{campaign_id}/donated-items", response_model=PaginatedResponse[ClientItemResponse])
 def list_campaign_donated_items(
     campaign_id: str,
@@ -780,8 +968,8 @@ def list_campaign_donated_items(
         .join(CampaignItem, CampaignItem.item_id == Item.id)
         .filter(
             CampaignItem.campaign_id == campaign.id,
-            CampaignItem.status == "approved",
-            Item.status == "approved",
+            CampaignItem.status == "received",
+            Item.status == "donated",
             Item.type == "donate",
         )
     )
@@ -871,12 +1059,20 @@ def list_my_purchases(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=60),
     status_filter: str = Query("", alias="status"),
+    search: str = Query(""),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     query = db.query(Transaction).filter(Transaction.from_user_id == current_user.id)
     if status_filter:
         query = query.filter(Transaction.status == status_filter)
+    if search:
+        query = (
+            query
+            .outerjoin(Transaction.item)
+            .outerjoin(Transaction.campaign)
+            .filter(or_(Item.title.ilike(f"%{search}%"), Campaign.title.ilike(f"%{search}%")))
+        )
 
     # Fetch without status filter first for lazy expiry, then re-query if needed
     transactions = (
@@ -1032,7 +1228,7 @@ def reject_transaction_handover(
 
 class NotificationItem(BaseModel):
     id: str
-    type: str  # item_approved, item_rejected, sale_paid, sale_completed, sale_refunded, donation_approved, donation_rejected, payment_cancelled
+    type: str  # item_approved, sale_paid, donation_handover, donation_received, donation_rejected, ...
     message: str
     link: str | None = None
     timestamp: datetime
@@ -1107,27 +1303,32 @@ def _build_notifications(user: User, db: Session, after: datetime | None = None)
             timestamp=_ensure_tz(txn.updated_at),
         ))
 
-    # 4. Campaign item status changes — donation items reviewed by org
+    # 4. Campaign item status changes — donation item fulfillment by org
     campaign_items_query = (
         db.query(CampaignItem)
         .join(Item, CampaignItem.item_id == Item.id)
         .filter(
             Item.user_id == user.id,
-            CampaignItem.status.in_(["approved", "rejected"]),
+            CampaignItem.status.in_(["handover", "received", "rejected"]),
         )
-        .order_by(CampaignItem.created_at.desc())
+        .order_by(CampaignItem.updated_at.desc())
         .limit(20)
         .all()
     )
+    campaign_item_messages = {
+        "handover": "was accepted and is ready for handover",
+        "received": "was received",
+        "rejected": "was rejected",
+    }
     for ci in campaign_items_query:
         item_title = ci.item.title if ci.item else "your donation"
         campaign_title = ci.campaign.title if ci.campaign else "a campaign"
         notifs.append(NotificationItem(
             id=f"ci-{ci.id}-{ci.status}",
             type=f"donation_{ci.status}",
-            message=f'Your donation "{item_title}" was {ci.status} by {campaign_title}.',
+            message=f'Your donation "{item_title}" {campaign_item_messages[ci.status]} by {campaign_title}.',
             link=f"/my-items?item={ci.item_id}",
-            timestamp=_ensure_tz(ci.created_at),
+            timestamp=_ensure_tz(ci.updated_at),
         ))
 
     # Sort by timestamp desc

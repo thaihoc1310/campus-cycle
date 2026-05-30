@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Info, Megaphone, Package, Search } from 'lucide-react';
+import { ChevronRight, Info, Megaphone, Package, Search, Award, TrendingUp, Heart, Sparkles, Users } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -55,9 +55,11 @@ export default function CampaignDetail() {
   const [donatedPage, setDonatedPage] = useState(1);
   const [donatedSearch, setDonatedSearch] = useState('');
   const [selectedDonation, setSelectedDonation] = useState(null);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     api.get(`/client/campaigns/${campaignId}`).then((res) => setCampaign(res.data)).catch(() => {});
+    api.get(`/client/campaigns/${campaignId}/stats`).then((res) => setStats(res.data)).catch(() => {});
   }, [campaignId]);
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export default function CampaignDetail() {
           <div className="client-section__header">
             <div>
               <h1 className="client-section__title">Donated Items</h1>
-              <p className="client-section__copy">Approved donated items submitted to {campaign.title}.</p>
+              <p className="client-section__copy">Items physically received by {campaign.title}.</p>
             </div>
             <Link className="btn btn--primary btn--md" to={`/campaigns/${campaignId}/donate-item`}>Create Donate Item</Link>
           </div>
@@ -168,7 +170,7 @@ export default function CampaignDetail() {
             <div className="client-empty">
               <span className="client-empty__icon"><Search size={28} /></span>
               <span className="client-empty__title">No donated items found</span>
-              <span className="client-empty__copy">Approved donated items for this campaign will appear here.</span>
+              <span className="client-empty__copy">Items will appear here after the organization confirms handover.</span>
             </div>
           )}
 
@@ -177,9 +179,91 @@ export default function CampaignDetail() {
         </section>
       ) : (
         <div className="client-detail">
-          {/* Left column: Images */}
+          {/* Left column: Images + Stats BI */}
           <section>
             <ClientImageGallery images={campaign.images || []} title={campaign.title} fallbackIcon={<Megaphone size={80} />} />
+
+            {stats && (
+              <div className="client-bi-dashboard">
+                <div className="client-bi-dashboard__header">
+                  <div className="client-bi-dashboard__title">
+                    <TrendingUp size={20} />
+                    <span>Campaign Stats Overview</span>
+                  </div>
+                </div>
+
+                <div className="client-bi-grid">
+                  {campaign.type === 'fundraising' ? (
+                    <>
+                      <div className="client-bi-card">
+                        <span className="client-bi-card__icon client-bi-card__icon--primary">
+                          <Heart size={24} />
+                        </span>
+                        <div className="client-bi-card__content">
+                          <span className="client-bi-card__value">{money(stats.total_raised)}</span>
+                          <span className="client-bi-card__label">Total Raised</span>
+                        </div>
+                      </div>
+                      <div className="client-bi-card">
+                        <span className="client-bi-card__icon">
+                          <Users size={24} />
+                        </span>
+                        <div className="client-bi-card__content">
+                          <span className="client-bi-card__value">{stats.total_donors}</span>
+                          <span className="client-bi-card__label">Generous Donors</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="client-bi-card">
+                        <span className="client-bi-card__icon client-bi-card__icon--primary">
+                          <Package size={24} />
+                        </span>
+                        <div className="client-bi-card__content">
+                          <span className="client-bi-card__value">{stats.total_items}</span>
+                          <span className="client-bi-card__label">Items Contributed</span>
+                        </div>
+                      </div>
+                      <div className="client-bi-card">
+                        <span className="client-bi-card__icon">
+                          <Users size={24} />
+                        </span>
+                        <div className="client-bi-card__content">
+                          <span className="client-bi-card__value">{stats.total_donors}</span>
+                          <span className="client-bi-card__label">Active Donors</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="client-leaderboard">
+                  <span className="client-leaderboard__title">
+                    <Award size={16} style={{ display: 'inline-block', verticalAlign: 'text-bottom', marginRight: 'var(--space-1)', color: '#d97706' }} />
+                    Top Contributors
+                  </span>
+
+                  {stats.top_contributors && stats.top_contributors.length > 0 ? (
+                    stats.top_contributors.map((contrib, index) => (
+                      <div key={index} className={`client-leaderboard-row ${index === 0 ? 'client-leaderboard-row--top1' : ''}`}>
+                        <div className="client-leaderboard-row__left">
+                          <span className="client-leaderboard-row__rank">{index + 1}</span>
+                          <span className="client-leaderboard-row__name">{contrib.name}</span>
+                        </div>
+                        <span className="client-leaderboard-row__value">
+                          {campaign.type === 'fundraising' ? money(contrib.amount) : `${contrib.item_count} item${contrib.item_count !== 1 ? 's' : ''}`}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="client-leaderboard__empty">
+                      No contributions yet. Be the first to support this campaign!
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Right column: Info + Action */}

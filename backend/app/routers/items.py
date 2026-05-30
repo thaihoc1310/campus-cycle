@@ -32,13 +32,6 @@ def _item_to_response(item: Item) -> ItemResponse:
     )
 
 
-def _sync_rejected_campaign_items(item: Item) -> None:
-    if item.status != "rejected":
-        return
-    for campaign_item in item.campaign_items:
-        campaign_item.status = "rejected"
-
-
 def _normalize_item_price(item: Item) -> None:
     if item.type == "donate":
         item.price = Decimal("0.00")
@@ -94,7 +87,6 @@ def update_item(item_id: str, data: ItemUpdate, db: Session = Depends(get_db), _
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
     _normalize_item_price(item)
-    _sync_rejected_campaign_items(item)
     db.commit()
     db.refresh(item)
     return _item_to_response(item)

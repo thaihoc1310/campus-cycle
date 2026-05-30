@@ -1,14 +1,14 @@
 import math
 import os
 import uuid as uuid_lib
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_, desc
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -34,12 +34,15 @@ class OrgDashboardResponse(BaseModel):
     fundraising_campaigns: int
     donation_campaigns: int
     pending_items: int
-    approved_items: int
+    handover_items: int
+    donated_items: int
     rejected_items: int
     money_donors: int
     total_money_donations: Decimal
     campaign_statuses: list[dict]
     campaign_types: list[dict]
+    top_fundraising: list[dict] = []
+    top_donation: list[dict] = []
 
 
 class OrgCampaignResponse(CampaignResponse):
@@ -58,6 +61,15 @@ class OrgCampaignItemResponse(BaseModel):
     item_type: str
     donor_name: str | None = None
     donor_email: str | None = None
+    donor_phone: str | None = None
+    category_name: str | None = None
+    accepted_by_name: str | None = None
+    accepted_at: datetime | None = None
+    received_by_name: str | None = None
+    received_at: datetime | None = None
+    rejected_by_name: str | None = None
+    rejected_at: datetime | None = None
+    rejection_reason: str | None = None
     main_image: str | None = None
     item_images: list[str] = []
 
@@ -76,7 +88,8 @@ class OrgCampaignStats(BaseModel):
     money_donations: int
     total_money_donations: Decimal
     pending_items: int
-    approved_items: int
+    handover_items: int
+    donated_items: int
     rejected_items: int
 
 
@@ -89,7 +102,8 @@ class OrgCampaignDetailResponse(BaseModel):
 
 
 class CampaignItemStatusUpdate(BaseModel):
-    status: Literal["approved", "rejected"]
+    status: Literal["handover", "received", "rejected"]
+    rejection_reason: str | None = None
 
 
 def _require_org_admin(org_id: str, current_user: User, db: Session) -> Organization:
@@ -149,6 +163,7 @@ def _campaign_to_response(campaign: Campaign, db: Session) -> OrgCampaignRespons
 
 def _campaign_item_to_response(campaign_item: CampaignItem, db: Session) -> OrgCampaignItemResponse:
     item = campaign_item.item
+    reveal_donor_contact = campaign_item.status in {"handover", "received"}
     item_images_rows = (
         db.query(ItemImage)
         .filter(ItemImage.item_id == item.id)
@@ -166,7 +181,16 @@ def _campaign_item_to_response(campaign_item: CampaignItem, db: Session) -> OrgC
         item_status=item.status,
         item_type=item.type,
         donor_name=item.owner.name if item.owner else None,
-        donor_email=item.owner.email if item.owner else None,
+        donor_email=item.owner.email if item.owner and reveal_donor_contact else None,
+        donor_phone=item.owner.phone if item.owner and reveal_donor_contact else None,
+        category_name=item.category.name if item.category else None,
+        accepted_by_name=campaign_item.accepted_by.name if campaign_item.accepted_by else None,
+        accepted_at=campaign_item.accepted_at,
+        received_by_name=campaign_item.received_by.name if campaign_item.received_by else None,
+        received_at=campaign_item.received_at,
+        rejected_by_name=campaign_item.rejected_by.name if campaign_item.rejected_by else None,
+        rejected_at=campaign_item.rejected_at,
+        rejection_reason=campaign_item.rejection_reason,
         main_image=_item_main_image(item.id, db),
         item_images=[img.image_path for img in item_images_rows],
     )
@@ -176,18 +200,16 @@ def _is_campaign_item_pending_for_org(campaign_item: CampaignItem) -> bool:
     return campaign_item.status == "pending" and campaign_item.item.status == "approved"
 
 
-def _is_campaign_item_approved(campaign_item: CampaignItem) -> bool:
-    return campaign_item.status == "approved" and campaign_item.item.status == "approved"
+def _is_campaign_item_handover(campaign_item: CampaignItem) -> bool:
+    return campaign_item.status == "handover" and campaign_item.item.status == "approved"
+
+
+def _is_campaign_item_received(campaign_item: CampaignItem) -> bool:
+    return campaign_item.status == "received" and campaign_item.item.status == "donated"
 
 
 def _is_campaign_item_rejected(campaign_item: CampaignItem) -> bool:
     return campaign_item.status == "rejected" or campaign_item.item.status == "rejected"
-
-
-def _sync_rejected_item_pair(campaign_item: CampaignItem) -> None:
-    campaign_item.item.status = "rejected"
-    for related_campaign_item in campaign_item.item.campaign_items:
-        related_campaign_item.status = "rejected"
 
 
 @router.get("/me", response_model=list[OrganizationResponse])
@@ -282,10 +304,21 @@ def get_org_dashboard(
         .scalar()
         or 0
     )
-    approved_items = (
+    handover_items = (
         db.query(func.count(CampaignItem.id))
         .join(Item)
-        .filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "approved", Item.status == "approved")
+        .filter(
+            CampaignItem.campaign_id.in_(campaign_ids),
+            CampaignItem.status == "handover",
+            Item.status == "approved",
+        )
+        .scalar()
+        or 0
+    )
+    donated_items = (
+        db.query(func.count(CampaignItem.id))
+        .join(Item)
+        .filter(CampaignItem.campaign_id.in_(campaign_ids), CampaignItem.status == "received", Item.status == "donated")
         .scalar()
         or 0
     )
@@ -300,6 +333,7 @@ def get_org_dashboard(
     money_query = db.query(Transaction).filter(
         Transaction.campaign_id.in_(campaign_ids),
         Transaction.transaction_type == "campaign_donation",
+        Transaction.status == "completed",
     )
     money_donors = money_query.count()
     total_money_donations = money_query.with_entities(func.coalesce(func.sum(Transaction.amount), 0)).scalar() or Decimal("0")
@@ -317,6 +351,51 @@ def get_org_dashboard(
         .all()
     )
 
+    # Top Fundraising Campaigns: campaigns belonging to this org sorted by sum of completed money donation transactions
+    fundraising_rows = (
+        db.query(
+            Campaign.id,
+            Campaign.title,
+            func.coalesce(func.sum(Transaction.amount), 0).label("total_raised")
+        )
+        .outerjoin(Transaction, and_(
+            Transaction.campaign_id == Campaign.id,
+            Transaction.transaction_type == "campaign_donation",
+            Transaction.status == "completed",
+        ))
+        .filter(Campaign.organization_id == org.id, Campaign.type == "fundraising")
+        .group_by(Campaign.id)
+        .order_by(desc("total_raised"))
+        .limit(5)
+        .all()
+    )
+    top_fundraising = [
+        {"id": str(row.id), "title": row.title, "value": float(row.total_raised)}
+        for row in fundraising_rows
+    ]
+
+    # Top Donation Campaigns: campaigns belonging to this org sorted by physically received items
+    donation_rows = (
+        db.query(
+            Campaign.id,
+            Campaign.title,
+            func.count(CampaignItem.id).label("item_count")
+        )
+        .outerjoin(CampaignItem, and_(
+            CampaignItem.campaign_id == Campaign.id,
+            CampaignItem.status == "received"
+        ))
+        .filter(Campaign.organization_id == org.id, Campaign.type == "donation")
+        .group_by(Campaign.id)
+        .order_by(desc("item_count"))
+        .limit(5)
+        .all()
+    )
+    top_donation = [
+        {"id": str(row.id), "title": row.title, "value": int(row.item_count)}
+        for row in donation_rows
+    ]
+
     return OrgDashboardResponse(
         total_campaigns=total_campaigns,
         approved_campaigns=approved_campaigns,
@@ -324,12 +403,15 @@ def get_org_dashboard(
         fundraising_campaigns=fundraising_campaigns,
         donation_campaigns=donation_campaigns,
         pending_items=pending_items,
-        approved_items=approved_items,
+        handover_items=handover_items,
+        donated_items=donated_items,
         rejected_items=rejected_items,
         money_donors=money_donors,
         total_money_donations=total_money_donations,
         campaign_statuses=[{"status": status, "count": count} for status, count in status_rows],
         campaign_types=[{"type": campaign_type, "count": count} for campaign_type, count in type_rows],
+        top_fundraising=top_fundraising,
+        top_donation=top_donation,
     )
 
 
@@ -422,7 +504,11 @@ def get_org_campaign_detail(
     )
     total_money_donations = (
         db.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(Transaction.campaign_id == campaign.id, Transaction.transaction_type == "campaign_donation")
+        .filter(
+            Transaction.campaign_id == campaign.id,
+            Transaction.transaction_type == "campaign_donation",
+            Transaction.status == "completed",
+        )
         .scalar()
         or Decimal("0")
     )
@@ -431,10 +517,11 @@ def get_org_campaign_detail(
         campaign=_campaign_to_response(campaign, db),
         images=[CampaignImageResponse.model_validate(image) for image in images],
         stats=OrgCampaignStats(
-            money_donations=len(donations),
+            money_donations=sum(1 for donation in donations if donation.status == "completed"),
             total_money_donations=total_money_donations,
             pending_items=sum(1 for item in campaign_items if _is_campaign_item_pending_for_org(item)),
-            approved_items=sum(1 for item in campaign_items if _is_campaign_item_approved(item)),
+            handover_items=sum(1 for item in campaign_items if _is_campaign_item_handover(item)),
+            donated_items=sum(1 for item in campaign_items if _is_campaign_item_received(item)),
             rejected_items=sum(1 for item in campaign_items if _is_campaign_item_rejected(item)),
         ),
         money_donations=[
@@ -608,17 +695,36 @@ def update_campaign_item_status(
         raise HTTPException(status_code=404, detail="Campaign item not found")
 
     if campaign_item.item.status == "rejected":
-        _sync_rejected_item_pair(campaign_item)
-        db.commit()
         raise HTTPException(status_code=400, detail="Item was rejected by campus admin")
 
-    if data.status == "approved" and campaign_item.item.status != "approved":
-        raise HTTPException(status_code=400, detail="Campus admin approval is required before organization approval")
+    if campaign_item.status in {"received", "rejected"}:
+        raise HTTPException(status_code=400, detail=f"Campaign item is already {campaign_item.status}")
 
-    if data.status == "rejected":
-        _sync_rejected_item_pair(campaign_item)
+    if campaign_item.item.status != "approved":
+        raise HTTPException(status_code=400, detail="Campus admin approval is required before organization review")
+
+    now = datetime.now(timezone.utc)
+    if data.status == "handover":
+        if campaign_item.status != "pending":
+            raise HTTPException(status_code=400, detail="Only pending items can be accepted")
+        campaign_item.status = "handover"
+        campaign_item.accepted_by_user_id = current_user.id
+        campaign_item.accepted_at = now
+    elif data.status == "received":
+        if campaign_item.status != "handover":
+            raise HTTPException(status_code=400, detail="Item must be in handover before it can be marked received")
+        campaign_item.status = "received"
+        campaign_item.received_by_user_id = current_user.id
+        campaign_item.received_at = now
+        campaign_item.item.status = "donated"
     else:
-        campaign_item.status = data.status
+        if campaign_item.status not in {"pending", "handover"}:
+            raise HTTPException(status_code=400, detail="Only pending handovers can be rejected")
+        campaign_item.status = "rejected"
+        campaign_item.rejected_by_user_id = current_user.id
+        campaign_item.rejected_at = now
+        campaign_item.rejection_reason = data.rejection_reason
+
     db.commit()
     db.refresh(campaign_item)
     return _campaign_item_to_response(campaign_item, db)

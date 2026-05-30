@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Filter, Package, PlusCircle, Search, X } from 'lucide-react';
 import api from '../../api/client';
-import { itemFeePreview, money, useMediaQuery } from './clientUtils.js';
+import { itemFeePreview, money } from './clientUtils.js';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -129,7 +129,6 @@ function FeedSkeleton() {
 }
 
 export default function Marketplace() {
-  const isMobile = useMediaQuery('(max-width: 900px)');
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
@@ -266,28 +265,14 @@ export default function Marketplace() {
         )}
 
         {/* Feed List */}
-        <div className="feed-list">
-          {isMobile ? (
-            items.map((item) => (
-              <MarketplaceItemCard key={item.id} item={item} />
-            ))
-          ) : (
-            <>
-              <div className="feed-column">
-                {items.filter((_, idx) => idx % 2 === 0).map((item) => (
-                  <MarketplaceItemCard key={item.id} item={item} />
-                ))}
-              </div>
-              <div className="feed-column">
-                {items.filter((_, idx) => idx % 2 !== 0).map((item) => (
-                  <MarketplaceItemCard key={item.id} item={item} />
-                ))}
-              </div>
-            </>
-          )}
+        <div className="feed-list feed-list--three-column">
+          {items.map((item) => (
+            <MarketplaceItemCard key={item.id} item={item} />
+          ))}
 
           {loading && (
             <>
+              <FeedSkeleton />
               <FeedSkeleton />
               <FeedSkeleton />
             </>

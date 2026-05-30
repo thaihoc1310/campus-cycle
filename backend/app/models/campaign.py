@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, ForeignKey, Boolean, func
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -71,6 +71,9 @@ class CampaignImage(Base):
 
 class CampaignItem(Base):
     __tablename__ = "campaign_items"
+    __table_args__ = (
+        UniqueConstraint("item_id", name="uq_campaign_items_item_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -83,14 +86,33 @@ class CampaignItem(Base):
     )
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
-    )  # pending, approved, rejected
+    )  # pending, handover, received, rejected
+    accepted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    received_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejected_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # Relationships
     item: Mapped["Item"] = relationship("Item", back_populates="campaign_items", lazy="joined")
     campaign: Mapped["Campaign"] = relationship("Campaign", back_populates="campaign_items", lazy="select")
+    accepted_by: Mapped["User | None"] = relationship("User", foreign_keys=[accepted_by_user_id], lazy="joined")
+    received_by: Mapped["User | None"] = relationship("User", foreign_keys=[received_by_user_id], lazy="joined")
+    rejected_by: Mapped["User | None"] = relationship("User", foreign_keys=[rejected_by_user_id], lazy="joined")
 
     def __repr__(self):
         return f"<CampaignItem item={self.item_id} campaign={self.campaign_id}>"

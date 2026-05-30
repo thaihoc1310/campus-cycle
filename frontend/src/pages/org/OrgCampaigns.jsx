@@ -7,6 +7,8 @@ import Input from '../../components/ui/Input.jsx';
 import Modal from '../../components/ui/Modal.jsx';
 import Pagination from '../../components/ui/Pagination.jsx';
 import { useToast } from '../../components/ui/Toast.jsx';
+import ItemImagePicker from '../client/ItemImagePicker.jsx';
+import '../client/Client.css';
 import './Org.css';
 
 const defaultForm = {
@@ -35,6 +37,9 @@ export default function OrgCampaigns() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
+  const [imageFiles, setImageFiles] = useState([]);
+
+  const [orgName, setOrgName] = useState('');
 
   const fetchCampaigns = useCallback(() => {
     api.get(`/org/${orgId}/campaigns`, { params: { page, page_size: 12, ...filters } })
@@ -43,6 +48,11 @@ export default function OrgCampaigns() {
   }, [orgId, page, filters]);
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  useEffect(() => {
+    api.get(`/org/${orgId}`)
+      .then((res) => setOrgName(res.data.name))
+      .catch(() => {});
+  }, [orgId]);
 
   const updateFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -51,6 +61,7 @@ export default function OrgCampaigns() {
 
   const openCreate = () => {
     setForm(defaultForm);
+    setImageFiles([]);
     setModalOpen(true);
   };
 
@@ -64,6 +75,19 @@ export default function OrgCampaigns() {
         start_date: toApiDate(form.start_date),
         end_date: toApiDate(form.end_date),
       });
+
+      if (imageFiles.length) {
+        try {
+          const data = new FormData();
+          imageFiles.forEach((file) => data.append('files', file));
+          await api.post(`/org/${orgId}/campaigns/${res.data.id}/images`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } catch (imageErr) {
+          toast(imageErr.response?.data?.detail || 'Campaign created, but images could not upload', 'error');
+        }
+      }
+
       toast('Campaign submitted for campus review.', 'success');
       setModalOpen(false);
       navigate(`/org/${orgId}/campaigns/${res.data.id}`);
@@ -78,8 +102,8 @@ export default function OrgCampaigns() {
     <div className="org-page">
       <div className="org-page__header">
         <div>
-          <p className="org-eyebrow">Organization campaigns</p>
-          <h1>Campaigns</h1>
+          <p className="org-eyebrow">{orgName ? `${orgName} campaigns` : 'Organization campaigns'}</p>
+          <h1>Our Campaigns</h1>
           <p className="org-copy">Create campaigns, follow campus approval, and manage contribution review.</p>
         </div>
         <Button variant="primary" size="md" onClick={openCreate}>
@@ -156,6 +180,11 @@ export default function OrgCampaigns() {
             <Input id="org-new-campaign-end" label="End Date" type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
           </div>
           <Input id="org-new-campaign-desc" label="Description" type="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+
+          <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+            <ItemImagePicker files={imageFiles} onChange={setImageFiles} maxFiles={4} />
+          </div>
+
           <div className="modal__actions">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Creating...' : 'Create'}</Button>

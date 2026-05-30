@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Megaphone, Package, Sparkles, Leaf, TrendingUp, Coins } from 'lucide-react';
 import api from '../../api/client';
-import { money, useMediaQuery } from './clientUtils.js';
+import CampaignMediaGallery from './CampaignMediaGallery.jsx';
+import { money } from './clientUtils.js';
 import './Client.css';
 
 function timeAgo(dateStr) {
@@ -119,7 +120,7 @@ function FeedCampaignCard({ campaign }) {
   return (
     <article className="feed-card feed-card--campaign">
       <Link to={`/campaigns/${campaign.id}`} className="feed-card__link">
-        <FeedImageCarousel images={campaign.images || []} title={campaign.title} fallback={<Megaphone size={56} />} />
+        <CampaignMediaGallery images={campaign.images || []} title={campaign.title} />
       </Link>
 
       <div className="feed-card__body">
@@ -217,8 +218,6 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, loading]);
 
-  const isMobile = useMediaQuery('(max-width: 900px)');
-
   const renderCard = (entry, index) => {
     if (entry.feed_type === 'item' && entry.item) {
       return <FeedItemCard key={`item-${entry.item.id}-${index}`} item={entry.item} />;
@@ -228,6 +227,24 @@ export default function Home() {
     }
     return null;
   };
+
+  const feedRows = useMemo(() => {
+    const rows = [];
+    feed.forEach((entry) => {
+      const lastRow = rows[rows.length - 1];
+      if (lastRow?.key === entry.row_key) {
+        lastRow.entries.push(entry);
+        return;
+      }
+      rows.push({
+        key: entry.row_key,
+        type: entry.feed_type,
+        size: entry.row_size,
+        entries: [entry],
+      });
+    });
+    return rows;
+  }, [feed]);
 
   return (
     <div className="feed-page">
@@ -287,28 +304,23 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="feed-list">
-          {isMobile ? (
-            feed.map((entry, index) => renderCard(entry, index))
-          ) : (
-            <>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 0).map((entry, idx) => renderCard(entry, idx * 3))}
-              </div>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 1).map((entry, idx) => renderCard(entry, idx * 3 + 1))}
-              </div>
-              <div className="feed-column">
-                {feed.filter((_, idx) => idx % 3 === 2).map((entry, idx) => renderCard(entry, idx * 3 + 2))}
-              </div>
-            </>
-          )}
+        <div className="home-feed">
+          {feedRows.map((row) => (
+            <div
+              key={row.key}
+              className={`home-feed__row home-feed__row--${row.type === 'campaign' ? 'campaign' : 'items'}`}
+              style={row.type === 'item' ? { '--feed-row-columns': row.size } : undefined}
+            >
+              {row.entries.map((entry, index) => renderCard(entry, index))}
+            </div>
+          ))}
 
           {loading && (
-            <>
+            <div className="home-feed__row home-feed__row--items" style={{ '--feed-row-columns': 3 }}>
               <FeedSkeleton />
               <FeedSkeleton />
-            </>
+              <FeedSkeleton />
+            </div>
           )}
 
           {!loading && feed.length === 0 && (

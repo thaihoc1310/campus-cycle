@@ -50,7 +50,8 @@ const NOTIF_ICONS = {
   sale_completed: { icon: CheckCircle, color: '#10B981' },
   sale_refunded: { icon: XCircle, color: '#F59E0B' },
   payment_cancelled: { icon: XCircle, color: '#EF4444' },
-  donation_approved: { icon: CheckCircle, color: '#8B5CF6' },
+  donation_handover: { icon: ShoppingBag, color: '#6366F1' },
+  donation_received: { icon: CheckCircle, color: '#8B5CF6' },
   donation_rejected: { icon: XCircle, color: '#EF4444' },
 };
 
@@ -397,4 +398,3 @@ export default function ClientLayout() {
     </div>
   );
 }
-

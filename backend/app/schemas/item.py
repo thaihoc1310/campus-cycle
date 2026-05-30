@@ -4,7 +4,7 @@ from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel
 
-ItemStatus = Literal["pending", "approved", "rejected", "sold", "donated"]
+ItemStatus = Literal["pending", "approved", "rejected", "reserved", "sold", "donated"]
 ItemType = Literal["sell", "donate"]
 
 
