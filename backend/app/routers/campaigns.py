@@ -21,12 +21,17 @@ router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
 
 def _campaign_to_response(c: Campaign) -> CampaignResponse:
+    images_list = []
+    if hasattr(c, "images") and c.images:
+        images_list = [CampaignImageResponse.model_validate(img) for img in c.images]
+        
     return CampaignResponse(
         id=c.id, title=c.title, description=c.description,
         type=c.type, status=c.status, start_date=c.start_date, end_date=c.end_date,
         organization_id=c.organization_id,
         organization_name=c.organization.name if c.organization else None,
         created_at=c.created_at, updated_at=c.updated_at,
+        images=images_list 
     )
 
 

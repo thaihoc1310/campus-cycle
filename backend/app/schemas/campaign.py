@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, List 
 from uuid import UUID
 from pydantic import BaseModel
 
@@ -28,6 +28,16 @@ class CampaignUpdate(BaseModel):
     organization_id: UUID | None = None
 
 
+class CampaignImageResponse(BaseModel):
+    id: UUID
+    campaign_id: UUID
+    image_path: str
+    is_main: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CampaignResponse(BaseModel):
     id: UUID
     title: str
@@ -40,15 +50,6 @@ class CampaignResponse(BaseModel):
     organization_name: str | None = None
     created_at: datetime
     updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class CampaignImageResponse(BaseModel):
-    id: UUID
-    campaign_id: UUID
-    image_path: str
-    is_main: bool
-    created_at: datetime
+    images: list[CampaignImageResponse] = []
 
     model_config = {"from_attributes": True}
