@@ -574,7 +574,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(220px, 0.85fr);
   gap: 4px;
-  height: clamp(280px, 34vw, 430px);
+  height: clamp(340px, 38vw, 520px);
   overflow: hidden;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: #0B1020;
@@ -942,7 +942,7 @@
 
   .campaign-media-gallery {
     grid-template-columns: minmax(0, 1fr);
-    height: 260px;
+    height: 300px;
   }
 
   .campaign-media-gallery__side {
