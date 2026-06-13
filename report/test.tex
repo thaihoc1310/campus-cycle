@@ -491,6 +491,126 @@ hệ thống quản lý mã nguồn GitHub.
 
 https://github.com/thaihoc1310/campus-cycle
 
+\section{Kiến trúc công nghệ của hệ thống}
+
+Campus Cycle được triển khai theo mô hình ứng dụng web nhiều lớp, trong đó
+giao diện người dùng, tầng xử lý nghiệp vụ và tầng lưu trữ dữ liệu được tách
+riêng để dễ phát triển, kiểm thử và mở rộng. Kiến trúc này phù hợp với đặc thù
+của hệ thống vì các nhóm người dùng khác nhau như Thành viên, Quản trị viên
+hệ thống và Quản trị viên tổ chức đều truy cập vào cùng một nền tảng nhưng sử
+dụng các chức năng khác nhau.
+
+\subsection{Mô hình kiến trúc tổng quát}
+
+Hệ thống gồm ba lớp chính: lớp giao diện, lớp dịch vụ ứng dụng và lớp dữ
+liệu. Lớp giao diện được xây dựng bằng React và chạy thông qua Vite. Người dùng
+tương tác với hệ thống thông qua các trang như marketplace, chi tiết sản phẩm,
+quản lý chiến dịch, dashboard quản trị và dashboard tổ chức. Các thao tác từ giao
+diện được gửi tới backend thông qua các API dạng REST.
+
+Lớp dịch vụ ứng dụng được xây dựng bằng FastAPI. Backend chịu trách nhiệm
+tiếp nhận yêu cầu từ frontend, kiểm tra quyền truy cập, xử lý nghiệp vụ và trả dữ
+liệu về cho giao diện. Các nhóm API được tổ chức thành nhiều router riêng như
+xác thực tài khoản, người dùng, tổ chức, danh mục, vật phẩm, chiến dịch, giao
+dịch, dashboard, chức năng dành cho thành viên và chức năng dành cho quản trị
+viên tổ chức. Cách tổ chức này giúp mã nguồn dễ bảo trì và phản ánh rõ các phân
+hệ nghiệp vụ của Campus Cycle.
+
+Lớp dữ liệu sử dụng PostgreSQL 16 làm hệ quản trị cơ sở dữ liệu quan hệ.
+Backend truy cập cơ sở dữ liệu thông qua SQLAlchemy ORM, còn Alembic được sử
+dụng để quản lý lịch sử thay đổi lược đồ dữ liệu.
+
+\subsection{Các công nghệ sử dụng}
+
+\begin{table}[H]
+\centering
+\caption{Các công nghệ chính trong hệ thống}
+\label{tab:technology-architecture}
+\begin{tabular}{|p{3.7cm}|p{5.5cm}|p{6cm}|}
+\hline
+\textbf{Thành phần} & \textbf{Công nghệ} & \textbf{Vai trò trong hệ thống} \\
+\hline
+Frontend &
+React 18, Vite, React Router, Axios, Recharts, lucide-react &
+Xây dựng giao diện người dùng, điều hướng trang, gọi API, hiển thị dashboard và các biểu đồ thống kê. \\
+\hline
+Backend &
+FastAPI, Uvicorn, Pydantic &
+Cung cấp REST API, kiểm tra dữ liệu đầu vào, xử lý nghiệp vụ và trả dữ liệu cho frontend. \\
+\hline
+Cơ sở dữ liệu &
+PostgreSQL 16, SQLAlchemy, Alembic &
+Lưu trữ dữ liệu quan hệ, ánh xạ đối tượng dữ liệu và quản lý phiên bản thay đổi lược đồ cơ sở dữ liệu. \\
+\hline
+Xác thực và phân quyền &
+JWT, OAuth2 Bearer Token, bcrypt/passlib &
+Đăng nhập, sinh token truy cập, mã hóa mật khẩu và kiểm soát quyền theo vai trò người dùng. \\
+\hline
+Lưu trữ tệp &
+Local file storage, FastAPI StaticFiles &
+Lưu ảnh đại diện, ảnh tổ chức, ảnh vật phẩm và ảnh chiến dịch; cung cấp lại ảnh thông qua đường dẫn \texttt{/uploads}. \\
+\hline
+Môi trường phát triển &
+Docker Compose, PostgreSQL container, Vite proxy &
+Khởi tạo cơ sở dữ liệu local, hỗ trợ frontend chuyển tiếp các request \texttt{/api} và \texttt{/uploads} sang backend. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Luồng giao tiếp giữa các thành phần}
+
+Trong quá trình vận hành, frontend gửi request tới backend thông qua các
+đường dẫn \texttt{/api}. Vite được cấu hình proxy để chuyển tiếp các request này
+sang FastAPI tại cổng backend. Với các dữ liệu ảnh, frontend sử dụng đường dẫn
+\texttt{/uploads}; backend phục vụ các tệp này bằng cơ chế static file.
+
+Luồng xử lý cơ bản của một thao tác trong hệ thống diễn ra như sau:
+
+\begin{enumerate}[leftmargin=1.2cm]
+\item Người dùng thao tác trên giao diện React, ví dụ đăng nhập, đăng sản phẩm,
+gửi yêu cầu mua hàng hoặc tạo chiến dịch.
+\item Frontend sử dụng Axios gửi request tới REST API của backend. Nếu người
+dùng đã đăng nhập, token JWT được đính kèm trong header \texttt{Authorization}.
+\item FastAPI nhận request, kiểm tra dữ liệu đầu vào bằng Pydantic schema, xác
+thực người dùng và kiểm tra quyền truy cập phù hợp với vai trò.
+\item Backend xử lý nghiệp vụ thông qua các router và model tương ứng, sau đó
+đọc hoặc ghi dữ liệu vào PostgreSQL bằng SQLAlchemy.
+\item Kết quả xử lý được trả về frontend dưới dạng JSON để cập nhật giao diện,
+hiển thị thông báo hoặc thay đổi trạng thái của sản phẩm, chiến dịch và giao dịch.
+\end{enumerate}
+
+\subsection{Kiến trúc bảo mật và phân quyền}
+
+Hệ thống sử dụng cơ chế xác thực dựa trên JWT. Khi người dùng đăng nhập
+thành công, backend sinh access token chứa thông tin định danh người dùng. Token
+này được frontend lưu ở trình duyệt và gửi kèm trong các request cần xác thực.
+Backend giải mã token để xác định người dùng hiện tại trước khi cho phép truy
+cập vào các API bảo vệ.
+
+Về phân quyền, hệ thống tách các nhóm chức năng theo vai trò. Thành viên có
+thể đăng sản phẩm, mua hàng, quyên góp và theo dõi giao dịch của mình. Quản
+trị viên hệ thống có quyền quản lý người dùng, tổ chức, danh mục, vật phẩm,
+chiến dịch và giao dịch. Quản trị viên tổ chức chỉ thao tác với các tổ chức và
+chiến dịch mà mình được phân công quản lý. Mật khẩu người dùng được băm bằng
+bcrypt trước khi lưu vào cơ sở dữ liệu, giúp giảm rủi ro lộ thông tin đăng nhập
+khi dữ liệu bị truy cập trái phép.
+
+\subsection{Khả năng mở rộng và bảo trì}
+
+Kiến trúc hiện tại giúp hệ thống dễ mở rộng theo từng thành phần. Frontend có
+thể bổ sung thêm trang hoặc luồng nghiệp vụ mới mà không ảnh hưởng trực tiếp
+đến cấu trúc cơ sở dữ liệu. Backend được chia thành các router, schema, model và
+service riêng biệt nên có thể mở rộng từng phân hệ như giao dịch, chiến dịch,
+dashboard hoặc quản lý tổ chức. Cơ sở dữ liệu được quản lý bằng migration của
+Alembic, giúp việc thay đổi bảng dữ liệu có lịch sử rõ ràng và giảm rủi ro khi
+triển khai sang môi trường khác.
+
+Trong phạm vi triển khai hiện tại, thanh toán được mô phỏng thông qua trạng
+thái giao dịch như \texttt{pending}, \texttt{paid}, \texttt{completed} và
+\texttt{cancelled}. Khi cần tích hợp hệ thống thanh toán thật trong tương lai,
+backend có thể bổ sung thêm service trung gian để giao tiếp với cổng thanh toán
+mà không làm thay đổi lớn đến giao diện người dùng và mô hình dữ liệu lõi.
+
 \FloatBarrier
 \clearpage
 

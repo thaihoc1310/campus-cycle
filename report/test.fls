@@ -1,9 +1,9 @@
-PWD /home/thaihoc/Workspace/campus-cycle/baocao
+PWD /home/thaihoc/Workspace/campus-cycle/report
 INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/pdftex/pdflatex.fmt
-INPUT /home/thaihoc/Workspace/campus-cycle/baocao/test.tex
+INPUT /home/thaihoc/Workspace/campus-cycle/report/test.tex
 OUTPUT test.log
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/report.cls
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/report.cls
@@ -290,6 +290,10 @@ INPUT ./test.lot
 INPUT test.lot
 OUTPUT test.lot
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/vntex/vnr/vnbx12.tfm
+INPUT /usr/share/texlive/texmf-dist/tex/latex/vntex/t5cmtt.fd
+INPUT /usr/share/texlive/texmf-dist/tex/latex/vntex/t5cmtt.fd
+INPUT /usr/share/texlive/texmf-dist/tex/latex/vntex/t5cmtt.fd
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/vntex/vnr/vntt12.tfm
 INPUT ./context.drawio.png
 INPUT ./context.drawio.png
 INPUT ./context.drawio.png
@@ -488,3 +492,4 @@ INPUT /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/vntex/vnr/vnbx12.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/vntex/vnr/vnr12.pfb
 INPUT /usr/share/texlive/texmf-dist/fonts/type1/vntex/vnr/vnti12.pfb
+INPUT /usr/share/texlive/texmf-dist/fonts/type1/vntex/vnr/vntt12.pfb
