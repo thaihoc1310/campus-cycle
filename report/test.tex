@@ -1124,14 +1124,6 @@ Home Page: Hiển thị overview của hệ thống, các item và campaign nổ
 \label{fig:home-page}
 \end{figure}
 
-Item List Page: Hiển thị danh sách các item đang được bán hoặc quyên góp.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{Item List Page.png}
-\caption{Item List Page}
-\label{fig:item-list-page}
-\end{figure}
 
 Item Detail Page: Hiển thị thông tin chi tiết của item như hình ảnh, tên, giá và mô tả.
 
@@ -1151,7 +1143,7 @@ Checkout / Confirm Purchase Page: Cho phép member kiểm tra lại thông tin t
 \label{fig:checkout-confirm-purchase-page}
 \end{figure}
 
-My Purchases Page: Hiển thị danh sách các item mà member đã mua.
+My Purchases Page: Hiển thị thông tin các giao dịch của member.
 
 \begin{figure}[H]
 \centering
@@ -1160,7 +1152,7 @@ My Purchases Page: Hiển thị danh sách các item mà member đã mua.
 \label{fig:my-purchases-page}
 \end{figure}
 
-Purchase Detail / Review Page: Cho phép member xem chi tiết đơn mua hoặc đánh giá sau khi mua.
+Purchase Detail / Review Page: Cho phép member xem chi tiết đơn mua và thông tin người bán khi member đã thanh toán cho ứng dụng.
 
 \begin{figure}[H]
 \centering
@@ -1187,21 +1179,21 @@ Donate Item Page: Cho phép member gửi item để quyên góp cho campaign.
 \label{fig:donate-item-page}
 \end{figure}
 
-Campaign Detail Page: Hiển thị thông tin chi tiết của một item donation campaign.
+Donation Campaign Detail Page: Hiển thị thông tin chi tiết của một donation campaign.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{Campaign Detail Pagemb.png}
-\caption{Campaign Detail Page}
+\caption{Donation Campaign Detail Page}
 \label{fig:campaign-detail-member-page}
 \end{figure}
 
-Donation Page: Cho phép member nhập số tiền muốn quyên góp cho campaign.
+Fundraising Campaign Detail Page: Hiển thị thông tin chi tiết của một Fundraising campaign.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{Donation Page.png}
-\caption{Donation Page}
+\caption{Fundraising Campaign Detail Page}
 \label{fig:donation-page}
 \end{figure}
 
@@ -1245,7 +1237,7 @@ Campaign Management Page: Hiển thị danh sách các campaign mà tổ chức 
 \label{fig:campaign-management-org-page}
 \end{figure}
 
-Campaign Detail Page: Hiển thị thông tin, progress và danh sách donation trong campaign.
+Campaign Detail Page: Hiển thị thông tin của một campaign.
 
 \begin{figure}[H]
 \centering
@@ -1254,7 +1246,7 @@ Campaign Detail Page: Hiển thị thông tin, progress và danh sách donation 
 \label{fig:campaign-detail-org-page}
 \end{figure}
 
-Donated Item List Page: Hiển thị các item được member gửi vào campaign.
+Donated Item List Page: Quản lí các item được gửi đến tổ chức để quyên góp.
 
 \begin{figure}[H]
 \centering
@@ -1263,7 +1255,7 @@ Donated Item List Page: Hiển thị các item được member gửi vào campai
 \label{fig:donated-item-list-page}
 \end{figure}
 
-Donated Item Detail Page: Cho phép xem thông tin chi tiết của item được gửi đến tổ chức.
+Approval Page: Cho phép xem thông tin chi tiết của item được gửi đến tổ chức, để approve hoặc reject.
 
 \begin{figure}[H]
 \centering
@@ -1272,12 +1264,12 @@ Donated Item Detail Page: Cho phép xem thông tin chi tiết của item đượ
 \label{fig:donated-item-detail-page}
 \end{figure}
 
-Approval Page: Cho phép organization admin approve hoặc reject donated item.
+Handover Page: Cho phép cập nhật trạng thái bàn giao vật phẩm sau khi đã approve, ví dụ như đang chờ bàn giao, đã nhận hoặc từ chối bàn giao.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.75\textwidth]{Donation Item Approval Form.png}
-\caption{Approval Page}
+\caption{Handover Page}
 \label{fig:approval-page}
 \end{figure}
 
@@ -1321,13 +1313,13 @@ Organization Management Page: Cho phép xem và quản lý các organizations th
 \label{fig:organization-management-page}
 \end{figure}
 
-Category Management Page: Cho phép thêm, sửa, xóa các item categories.
+Organization Admin Management Page: Cho phép system admin quản lý danh sách admin của một organization. Giao diện hiển thị các admin hiện tại của organization và hỗ trợ thêm hoặc xóa admin khỏi organization đó.
 
 \begin{figure}[H]
-\centering
-\includegraphics[width=0.75\textwidth]{Category Management Page.png}
-\caption{Category Management Page}
-\label{fig:category-management-page}
+    \centering
+    \includegraphics[width=0.75\textwidth]{Organization Approval Modal.png}
+    \caption{Organization Admin Management Page}
+    \label{fig:organization-admin-management-page}
 \end{figure}
 
 Item Management Page: Cho phép system admin kiểm tra và quản lý các items trong hệ thống.
@@ -1337,6 +1329,15 @@ Item Management Page: Cho phép system admin kiểm tra và quản lý các item
 \includegraphics[width=0.75\textwidth]{Item Management Page.png}
 \caption{Item Management Page}
 \label{fig:item-management-page}
+\end{figure}
+
+Category Management Page: Cho phép thêm, sửa, xóa các item categories.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{Category Management Page.png}
+\caption{Category Management Page}
+\label{fig:category-management-page}
 \end{figure}
 
 Transaction Management Page: Theo dõi các transactions mua bán, quyên góp hoặc trạng thái xử lý.
@@ -1357,14 +1358,6 @@ Campaign Management Page: Theo dõi và quản lý các campaigns.
 \label{fig:campaign-management-admin-page}
 \end{figure}
 
-Organization Admin Management Page: Cho phép system admin quản lý danh sách admin của một organization. Giao diện hiển thị các admin hiện tại của organization và hỗ trợ thêm hoặc xóa admin khỏi organization đó.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.75\textwidth]{Organization Approval Modal.png}
-    \caption{Organization Admin Management Page}
-    \label{fig:organization-admin-management-page}
-\end{figure}
 
 \chapter{Kết luận và hướng phát triển}
 

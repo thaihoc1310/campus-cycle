@@ -1,0 +1,66 @@
+\babel@toc {vietnamese}{}\relax 
+\contentsline {chapter}{\numberline {1}Giới thiệu}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Bối cảnh đề tài}{1}{section.2}%
+\contentsline {section}{\numberline {1.2}Xác định bài toán}{1}{section.3}%
+\contentsline {section}{\numberline {1.3}Các vấn đề hiện tại và giải pháp liên quan}{2}{section.4}%
+\contentsline {subsection}{\numberline {1.3.1}Lãng phí tài nguyên}{2}{subsection.5}%
+\contentsline {subsection}{\numberline {1.3.2}Hoạt động quyên góp và gây quỹ còn rời rạc}{2}{subsection.6}%
+\contentsline {subsection}{\numberline {1.3.3}Thiếu nền tảng giao dịch nội bộ đáng tin cậy}{2}{subsection.7}%
+\contentsline {subsection}{\numberline {1.3.4}Công tác quản lý chiến dịch còn thủ công}{3}{subsection.8}%
+\contentsline {subsection}{\numberline {1.3.5}Nhu cầu xây dựng hệ thống mới}{3}{subsection.9}%
+\contentsline {section}{\numberline {1.4}Mục tiêu hệ thống}{3}{section.10}%
+\contentsline {section}{\numberline {1.5}Phạm vi hệ thống}{4}{section.11}%
+\contentsline {subsection}{\numberline {1.5.1}Trong phạm vi hệ thống}{4}{subsection.12}%
+\contentsline {subsection}{\numberline {1.5.2}Ngoài phạm vi hệ thống}{4}{subsection.13}%
+\contentsline {section}{\numberline {1.6}Tổng quan hệ thống}{5}{section.14}%
+\contentsline {subsection}{\numberline {1.6.1}Ngữ cảnh hệ thống}{5}{subsection.15}%
+\contentsline {subsection}{\numberline {1.6.2}Đặc điểm người dùng}{5}{subsection.16}%
+\contentsline {subsection}{\numberline {1.6.3}Mã nguồn hệ thống}{6}{subsection.17}%
+\contentsline {chapter}{\numberline {2}Yêu cầu hệ thống}{7}{chapter.18}%
+\contentsline {section}{\numberline {2.1}Yêu cầu chức năng}{7}{section.19}%
+\contentsline {subsection}{\numberline {2.1.1}Chức năng của Quản trị viên}{7}{subsection.20}%
+\contentsline {subsection}{\numberline {2.1.2}Chức năng của Thành viên}{8}{subsection.21}%
+\contentsline {subsection}{\numberline {2.1.3}Chức năng của Quản trị viên tổ chức}{9}{subsection.22}%
+\contentsline {subsection}{\numberline {2.1.4}Chức năng của Billing System}{9}{subsection.23}%
+\contentsline {section}{\numberline {2.2}Yêu cầu phi chức năng}{9}{section.24}%
+\contentsline {subsection}{\numberline {2.2.1}Yêu cầu hiệu năng}{9}{subsection.25}%
+\contentsline {subsection}{\numberline {2.2.2}Yêu cầu bảo mật}{10}{subsection.26}%
+\contentsline {subsection}{\numberline {2.2.3}Tính thân thiện và khả năng sử dụng}{10}{subsection.27}%
+\contentsline {subsection}{\numberline {2.2.4}Các yêu cầu chất lượng khác}{11}{subsection.28}%
+\contentsline {subsection}{\numberline {2.2.5}Các quy tắc nghiệp vụ}{11}{subsection.29}%
+\contentsline {chapter}{\numberline {3}Biểu đồ ngữ cảnh}{12}{chapter.30}%
+\contentsline {section}{\numberline {3.1}Context Diagram}{12}{section.31}%
+\contentsline {section}{\numberline {3.2}Mô tả}{12}{section.34}%
+\contentsline {subsection}{\numberline {3.2.1}Các Thực Thể Ngoài (External Entities)}{12}{subsection.35}%
+\contentsline {subsection}{\numberline {3.2.2} Phân Tích Luồng Dữ Liệu (Context Data Flows)}{13}{subsection.36}%
+\contentsline {subsubsection}{\numberline {3.2.2.1}Tương tác giữa Member và Campus Cycle}{13}{subsubsection.37}%
+\contentsline {subsubsection}{\numberline {3.2.2.2}Tương tác giữa Administrator và Campus Cycle}{14}{subsubsection.40}%
+\contentsline {subsubsection}{\numberline {3.2.2.3}Tương tác giữa Organization Admin và Campus Cycle}{15}{subsubsection.43}%
+\contentsline {subsubsection}{\numberline {3.2.2.4}Tương tác giữa Billing System và Campus Cycle}{16}{subsubsection.46}%
+\contentsline {chapter}{\numberline {4}Sơ đồ Luồng dữ liệu}{17}{chapter.49}%
+\contentsline {section}{\numberline {4.1}Data Flow Diagram Level 0}{17}{section.50}%
+\contentsline {subsection}{\numberline {4.1.1} DFD Level 0}{17}{subsection.51}%
+\contentsline {subsection}{\numberline {4.1.2} Chi tiết các tiến trình trên DFD Level-0}{17}{subsection.54}%
+\contentsline {section}{\numberline {4.2}Data Flow Diagram Level 1}{19}{section.55}%
+\contentsline {subsection}{\numberline {4.2.1}Process 1.0- Manage item posting}{19}{subsection.56}%
+\contentsline {subsection}{\numberline {4.2.2}Process 3.0- Validate item posting}{19}{subsection.59}%
+\contentsline {subsection}{\numberline {4.2.3}Process 4.0- Validate campaign}{19}{subsection.62}%
+\contentsline {subsection}{\numberline {4.2.4}Process 6.0- Process purchases}{20}{subsection.65}%
+\contentsline {subsection}{\numberline {4.2.5}Process 8.0- Manage Donation Item Status}{20}{subsection.68}%
+\contentsline {subsection}{\numberline {4.2.6}Process 9.0- Manage transaction}{20}{subsection.71}%
+\contentsline {chapter}{\numberline {5}Thiết kế Cơ sở dữ liệu}{21}{chapter.74}%
+\contentsline {section}{\numberline {5.1}Thiết kế Cơ sở dữ liệu mức khái niệm (E-R Diagram)}{21}{section.75}%
+\contentsline {section}{\numberline {5.2}Thiết kế Cơ sở dữ liệu mức logic (Relational Diagram)}{22}{section.78}%
+\contentsline {chapter}{\numberline {6}Triển khai và thực hiện}{23}{chapter.81}%
+\contentsline {section}{\numberline {6.1}Cài đặt cơ sở dữ liệu}{23}{section.82}%
+\contentsline {subsection}{\numberline {6.1.1}Cơ sở dữ liệu hệ thống}{23}{subsection.83}%
+\contentsline {section}{\numberline {6.2}Giao diện cơ bản}{24}{section.84}%
+\contentsline {subsection}{\numberline {6.2.1}Nhóm giao diện xác thực tài khoản}{24}{subsection.85}%
+\contentsline {subsection}{\numberline {6.2.2}Nhóm giao diện thành viên}{25}{subsection.90}%
+\contentsline {subsection}{\numberline {6.2.3}Nhóm giao diện quản trị tổ chức}{29}{subsection.113}%
+\contentsline {subsection}{\numberline {6.2.4}Nhóm giao diện quản trị hệ thống}{32}{subsection.128}%
+\contentsline {chapter}{\numberline {7}Kết luận và hướng phát triển}{36}{chapter.145}%
+\contentsline {section}{\numberline {7.1}Đánh giá và phân tích}{36}{section.146}%
+\contentsline {section}{\numberline {7.2}Kết luận}{37}{section.147}%
+\contentsline {section}{\numberline {7.3}Hướng phát triển}{38}{section.148}%
+\contentsline {chapter}{Tài liệu tham khảo}{40}{chapter*.149}%
